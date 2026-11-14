@@ -193,6 +193,8 @@ agent 侧（插件，很薄）
 | `PC_FEISHU_ENABLED` / `PC_FEISHU_INTERVAL_MS` | 飞书开关与节奏 | `false` / `5000` |
 | `PC_TELEGRAM_PROXY` | TG 走的代理（`socks5://host:port`） | 无 |
 | `PC_TELEGRAM_CHATS` | 只采这些会话，逗号分隔；空=全部 | 空 |
+| `PC_TELEGRAM_BACKFILL` | 首次见到一个会话时回填最近几条；`0` = 只从当前最新开始，不回溯历史 | `0` |
+| `PC_TELEGRAM_ONCE` | 只跑一轮就退出，手工验活用（**别写进 `sources.env`**，否则常驻进程起来采集一轮就停） | 无 |
 | `PC_CREDENTIAL_CHATS` / `PC_CREDENTIAL_PATTERNS` | 凭据类判定规则 | `777000` / 验证码词表 |
 
 启用了某路来源却缺凭据时，**启动直接报错并点名缺什么**，不会静默关掉。
@@ -203,6 +205,17 @@ agent 侧（插件，很薄）
 
 凭据落在 `~/.dsh/state/personal-context/sources.env`（0600），systemd 用 `EnvironmentFile` 加载；不进 git、不进设置界面。
 
+
+## 加一路来源（不动投递）
+
+1. 写 `src/sources/<name>.js` 或 `<name>.py`：从 `PC_SOURCE_*` 读配置，往 stdout 写一行一个信封，日志走 stderr。
+2. 在配置里加 `sources.<name>.enabled = true`（和它自己需要的键）。
+
+守护进程按文件名约定发现，没有注册表要改；投递侧一行都不用动。
+
+**水位**存 `<stateDir>/watermarks/<name>.json`，原子写。**首轮不回溯历史**——`backfill` 控制回补多少条，默认 0。
+
+看护规则：非零退出 10 秒后重启（指数退避封顶 60 秒），SIGTERM 后不再重启。来源崩了不影响别的来源，也不影响投递。
 
 ## 现在做 / 现在不做
 

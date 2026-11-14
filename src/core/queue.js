@@ -47,6 +47,7 @@ export function openQueue(path, { routes = [], now = () => new Date() } = {}) {
   )
   const markFailed = db.prepare('UPDATE events SET attempts=attempts+1, last_error=? WHERE id=?')
   const countBySource = db.prepare('SELECT source, state, COUNT(*) AS n FROM events GROUP BY source, state')
+  const countPending = db.prepare("SELECT COUNT(*) AS n FROM events WHERE sink=? AND state='pending'")
 
   return {
     path,
@@ -76,6 +77,11 @@ export function openQueue(path, { routes = [], now = () => new Date() } = {}) {
         meta: JSON.parse(row.meta),
         attempts: row.attempts,
       }))
+    },
+
+    /** 该 sink 还有多少条待投。只读、只数；积压放大用它决定这一轮的批次上限。 */
+    pending(sink) {
+      return Number(countPending.get(sink)?.n ?? 0)
     },
 
     ack(ids) {

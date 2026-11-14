@@ -47,6 +47,14 @@ function int(value, name) {
   return Math.floor(parsed)
 }
 
+/** 允许 0 的计数（backfill=0 表示不回填，是合法值，不能用 int 卡掉）。 */
+function count(value, name) {
+  if (value === undefined || value === null || value === '') return undefined
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`${name} 必须是非负整数: ${value}`)
+  return Math.floor(parsed)
+}
+
 function list(value) {
   if (value === undefined || value === null || value === '') return undefined
   return Array.isArray(value) ? value.map(String) : String(value).split(',').map(v => v.trim()).filter(Boolean)
@@ -79,6 +87,10 @@ export function readEnv(env = process.env) {
   out.sources.telegram.apiId = pick(env.PC_TELEGRAM_API_ID)
   out.sources.telegram.apiHash = pick(env.PC_TELEGRAM_API_HASH)
   out.sources.telegram.session = pick(env.PC_TELEGRAM_SESSION)
+  // 下面三项由 supervisor 变成 PC_SOURCE_PROXY / CHATS / BACKFILL 交给来源进程
+  out.sources.telegram.proxy = pick(env.PC_TELEGRAM_PROXY)
+  out.sources.telegram.chats = list(env.PC_TELEGRAM_CHATS)
+  out.sources.telegram.backfill = count(env.PC_TELEGRAM_BACKFILL, 'PC_TELEGRAM_BACKFILL')
 
   out.sources.feishu.enabled = bool(env.PC_FEISHU_ENABLED, 'PC_FEISHU_ENABLED')
   out.sources.feishu.intervalMs = int(env.PC_FEISHU_INTERVAL_MS, 'PC_FEISHU_INTERVAL_MS')

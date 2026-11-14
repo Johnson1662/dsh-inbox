@@ -70,6 +70,7 @@ export function apply(ctx, pluginConfig = {}) {
     sink: config.delivery.sink,
     resolveAgent,
     deliver,
+    limits: config.limits,
     limit: config.delivery.limit,
     intervalMs: config.delivery.intervalMs,
     log,

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { configPath, expandHome, loadConfig } from '../core/config.js'
 import { createCredentialRules, normalize, stripCredentials } from '../core/envelope.js'
 import { openQueue } from '../core/queue.js'
+import { createSupervisor } from './supervisor.js'
 
 const MAX_BODY = 1024 * 1024
 
@@ -15,6 +16,17 @@ export function createDaemon(config, { log = () => {} } = {}) {
   const token = config.http.token ?? readOrCreateToken(stateDir, log)
   const queue = openQueue(join(stateDir, 'context.sqlite'), { routes: config.routes ?? [] })
   const credentials = createCredentialRules(config.credentials)
+  // 来源进程和 HTTP 入口走同一条管道：normalize 过、凭据规则过，才进队列
+  const sources = createSupervisor({
+    stateDir,
+    credentials,
+    log,
+    ingest(envelope) {
+      const result = queue.ingest(envelope)
+      log(`ingest ${result.id} sink=${result.sink} duplicate=${result.duplicate}`)
+      return result
+    },
+  })
 
   const server = createServer((req, res) => {
     handle(req, res).catch(error => {
@@ -62,16 +74,21 @@ export function createDaemon(config, { log = () => {} } = {}) {
     queue,
     token,
     stateDir,
+    sources,
     listen(port) {
       const wanted = port ?? Number(config.http.listen.split(':').pop())
       return new Promise(resolve => {
         server.listen(wanted, '127.0.0.1', () => {
           log(`listening on 127.0.0.1:${server.address().port}`)
+          // 起监听之后再拉来源：收事件的通道先就位，来源写出来的东西才有人接
+          sources.startEnabled(config)
           resolve(server.address().port)
         })
       })
     },
-    close() {
+    async close() {
+      // 先收来源子进程（SIGTERM → 5s → SIGKILL），再关队列：反过来的话它们还在写库
+      await sources.stopAll()
       return new Promise(resolve => {
         let settled = false
         const finish = () => {

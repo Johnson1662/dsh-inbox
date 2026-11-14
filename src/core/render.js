@@ -18,11 +18,18 @@ export function render(batch) {
 export function renderLine(envelope) {
   const chat = envelope.meta?.chat ?? envelope.meta?.chat_name ?? '未知会话'
   const sender = envelope.meta?.sender ?? envelope.meta?.sender_name ?? '?'
+  return `· ${chat} | ${sender} | ${timeOf(envelope.at)} | ${bodyOf(envelope)}`
+}
+
+/**
+ * 行内正文：折行后的正文，或空正文时的占位说明。
+ * batcher 的估算与这一行渲染共用它，两边不会算出两种长度。
+ */
+export function bodyOf(envelope) {
   const body = String(envelope.text ?? '').replace(/\s*\n\s*/g, ' ').trim()
-  const shown = body || (envelope.meta?.redacted
+  return body || (envelope.meta?.redacted
     ? '（正文已隐去：凭据类）'
     : `（附件：${envelope.meta?.media ?? '无正文'}）`)
-  return `· ${chat} | ${sender} | ${timeOf(envelope.at)} | ${shown}`
 }
 
 /** 取事件自带时区里的 HH:MM，不做时区换算——渲染要确定，测试才好写。 */

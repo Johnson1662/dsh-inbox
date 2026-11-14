@@ -66,6 +66,20 @@ test('按 at 升序取出，与时序无关', () => {
   done()
 })
 
+test('pending 只数该 sink 的待投；取走不算，ack 之后才少', () => {
+  const { queue, done } = makeQueue()
+  assert.equal(queue.pending('chief'), 0)
+  const { id } = queue.ingest(envelope({ text: '一' }))
+  queue.ingest(envelope({ text: '二' }))
+  assert.equal(queue.pending('chief'), 2)
+  assert.equal(queue.pending('work'), 0)
+  queue.take('chief', 10) // 只读，不改状态
+  assert.equal(queue.pending('chief'), 2)
+  queue.ack([id])
+  assert.equal(queue.pending('chief'), 1)
+  done()
+})
+
 test('路由在 ingest 时定下；没有兜底规则就启动失败', () => {
   const dir = mkdtempSync(join(tmpdir(), 'pc-route-'))
   const queue = openQueue(join(dir, 'a.sqlite'), {
