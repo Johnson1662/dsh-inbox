@@ -18,7 +18,7 @@ import {
   toEnvelope,
   toZonedIso,
   writeJsonAtomic,
-} from '../../src/sources/lark.js'
+} from '../../src/sources/feishu.js'
 
 // 测试全程用假 exec，不碰网络、不看真实登录状态。
 // 时间也钉死：时区固定 +08:00，不依赖跑测试那台机器的 TZ。

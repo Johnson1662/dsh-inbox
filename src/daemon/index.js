@@ -146,7 +146,9 @@ function readOrCreateToken(stateDir, log) {
 
 if (process.argv[1]?.endsWith(join('daemon', 'index.js'))) {
   const file = process.argv[2] ?? process.env.PC_CONFIG
-  const overrides = file ? JSON.parse(readFileSync(file, 'utf8')) : {}
+  // 配置文件缺失不是错误：插件还没跑过时用默认值 + 环境变量顶上
+  const overrides = file && existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {}
+  if (file && !existsSync(file)) console.log(`config: ${file} 不存在，用默认值 + 环境变量`)
   const config = loadConfig(overrides)
   const daemon = createDaemon(config, { log: message => console.log(`${new Date().toISOString()} ${message}`) })
   const port = await daemon.listen()

@@ -889,7 +889,7 @@ export async function main({ env = process.env, out = process.stdout, err = proc
   return 0
 }
 
-const invokedDirectly = typeof process.argv[1] === 'string' && basename(process.argv[1]) === 'lark.js'
+const invokedDirectly = typeof process.argv[1] === 'string' && basename(process.argv[1]) === 'feishu.js'
 if (invokedDirectly) {
   main()
     .then(code => {

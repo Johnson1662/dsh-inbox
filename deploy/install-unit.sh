@@ -6,7 +6,8 @@ node=$(readlink -f "$(command -v node)")
 [ -x "$node" ] || { echo "找不到 node" >&2; exit 1; }
 unit="$HOME/.config/systemd/user/personal-context-daemon.service"
 mkdir -p "$(dirname "$unit")"
-sed "s|@NODE@|$node|" "$here/personal-context-daemon.service" > "$unit"
+sed -e "s|@NODE@|$node|" -e "s|@NODE_BIN@|$(dirname "$node")|" \
+  "$here/personal-context-daemon.service" > "$unit"
 systemctl --user daemon-reload
 systemctl --user enable --now personal-context-daemon.service
 sleep 1

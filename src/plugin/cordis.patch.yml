@@ -10,6 +10,15 @@
         stateDir: ~/.dsh/state/personal-context
         sink: chief
         intervalMs: 500
+        batchCount: 50
+        batchChars: 4000
+        backlogCount: 200
+        backlogChars: 20000
+        # 来源开关与节奏：设置界面里就是这几项，值必须与 daemon 的 config.json 一致
+        telegramEnabled: true
+        telegramIntervalMs: 8000
+        feishuEnabled: true
+        feishuIntervalMs: 5000
         routes:
           - sources: ["*"]
             sink: chief

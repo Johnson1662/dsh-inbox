@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# 重启 DSH 桌面端：沿用当前进程的环境（DISPLAY/WAYLAND/DBUS），不做猜测。
+# 重启 DSH 桌面端。
+# 从常驻 systemd 定时器里跑（systemd-run --user --on-active=…），
+# 这样脚本不挂在被杀的进程树里；环境变量从调用时的 shell 继承（DISPLAY/DBUS/XDG 都在）。
 set -euo pipefail
-pid=$(pgrep -f '/opt/DeepSeek Harness/deepseek-harness$' | head -1)
-[ -n "$pid" ] || { echo "找不到 DSH 主进程" >&2; exit 1; }
-envdump=$(mktemp)
-tr '\0' '\n' < "/proc/$pid/environ" > "$envdump"
 app="/opt/DeepSeek Harness/deepseek-harness"
-echo "停止 DSH (pid $pid)…"
-kill -TERM "$pid"
-for _ in $(seq 1 40); do kill -0 "$pid" 2>/dev/null || break; sleep 0.25; done
-kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" || true
+pid=$(pgrep -f '/opt/DeepSeek Harness/deepseek-harness$' | head -1 || true)
+if [ -n "$pid" ]; then
+  echo "停止 DSH (pid $pid)…"
+  kill -TERM "$pid"
+  for _ in $(seq 1 60); do kill -0 "$pid" 2>/dev/null || break; sleep 0.25; done
+  kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" || true
+fi
 sleep 1
 echo "重新启动…"
-setsid nohup env -i $(grep -E '^(DISPLAY|WAYLAND_DISPLAY|XDG_RUNTIME_DIR|DBUS_SESSION_BUS_ADDRESS|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|HOME|USER|PATH|LANG|SHELL|XDG_DATA_HOME|XDG_CONFIG_HOME|XDG_CACHE_HOME)=' "$envdump" | sed 's/ /\\ /g' | tr '\n' ' ') \
-  "$app" >/tmp/dsh-restart.log 2>&1 &
-rm -f "$envdump"
-sleep 3
-pgrep -f '/opt/DeepSeek Harness/deepseek-harness$' >/dev/null && echo "DSH 已起来" || { echo "启动失败，看 /tmp/dsh-restart.log" >&2; exit 1; }
+setsid nohup env DISPLAY="${DISPLAY:-:0}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
+  "$app" >/tmp/dsh-restart.log 2>&1 < /dev/null &
+sleep 5
+pgrep -f '/opt/DeepSeek Harness/deepseek-harness$' >/dev/null \
+  && echo "DSH 已起来" \
+  || { echo "启动失败，看 /tmp/dsh-restart.log" >&2; exit 1; }
