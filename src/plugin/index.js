@@ -63,6 +63,9 @@ export function apply(ctx, pluginConfig = {}) {
       source,
     })
     agent.followup(message)
+    // 投完立刻落盘：崩溃或不正常退出时，这条消息不该只活在内存里
+    try { ctx.sessionPersistence?.flush?.() } catch (error) { log(`flush 失败: ${error?.message ?? error}`) }
+    log(`accepted batch=${batch.id} session=${agent.session?.id ?? '?'}`)
   }
 
   const loop = createDeliveryLoop({
