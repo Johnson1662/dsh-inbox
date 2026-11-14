@@ -1,0 +1,19 @@
+# 采集常驻：开机自启，DSH 关着也跑。
+# 安装：deploy/install-unit.sh
+[Unit]
+Description=Personal Context daemon（来源采集 + 队列）
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Development/Personal-Context
+EnvironmentFile=%h/.dsh/state/personal-context/sources.env
+Environment=PC_CONFIG=%h/.dsh/state/personal-context/config.json
+ExecStart=@NODE@ src/daemon/index.js
+Restart=always
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+[Install]
+WantedBy=default.target
