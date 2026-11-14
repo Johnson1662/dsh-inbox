@@ -1,0 +1,15 @@
+# 依赖
+node_modules/
+
+# 运行状态与凭据：绝不入库
+config.json
+state/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# 产物
+coverage/
+*.log
+.DS_Store
+tmp/
