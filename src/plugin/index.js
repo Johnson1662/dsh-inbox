@@ -1,35 +1,46 @@
-import { mkdirSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { configPath, expandHome, loadConfig, persistConfig } from '../core/config.js'
 import { openQueue } from '../core/queue.js'
 import { createDeliveryLoop } from './loop.js'
 
+export { Config } from './config-schema.js'
 export const name = 'dsh-personal-context'
 export const inject = ['agents']
 
-/** 组合根：把队列、会话解析、投递方式接起来。业务判断都不在这里。 */
-export function apply(ctx, initialConfig = {}) {
-  if (initialConfig.enabled === false) return
-  const stateDir = expand(initialConfig.stateDir ?? '~/.dsh/state/personal-context')
+/**
+ * 组合根。设置界面里的字段（见 config-schema.js）在这里摊成配置层，
+ * 并回写到与守护进程共用的那一份文件——界面改一次，两边都跟着变。
+ */
+export function apply(ctx, pluginConfig = {}) {
+  if (pluginConfig.enabled === false) return
+
+  const config = loadConfig(fromSettings(pluginConfig))
+  const stateDir = expandHome(config.stateDir)
   mkdirSync(stateDir, { recursive: true })
+
   const log = message => {
     try { appendFileSync(join(stateDir, 'bridge.log'), `${new Date().toISOString()} ${message}\n`) } catch {}
   }
 
-  const queue = openQueue(join(stateDir, 'context.sqlite'), {
-    routes: initialConfig.routes ?? [{ sources: ['*'], sink: 'chief' }],
-  })
-  const sinks = initialConfig.sinks ?? {}
+  try {
+    persistConfig(configPath(config), toPatch(config))
+  } catch (error) {
+    log(`回写配置文件失败: ${error.message}`)
+  }
 
-  const resolveAgent = sink => {
-    const config = sinks[sink]
-    if (!config) return undefined
-    let id = config.sessionId
-    if (config.botId) {
+  const queue = openQueue(join(stateDir, 'context.sqlite'), { routes: config.routes })
+  const sinks = pluginConfig.sinks ?? {}
+
+  const resolveAgent = sinkName => {
+    const sink = sinks[sinkName]
+    if (!sink) return undefined
+    let id = sink.sessionId
+    if (sink.botId) {
       try {
-        const state = JSON.parse(readFileSync(expand(config.botStatePath ?? '~/.dsh/bot/state.json'), 'utf8'))
-        id = state.bots?.[config.botId]?.sessionId ?? id
+        const state = JSON.parse(readFileSync(expandHome(sink.botStatePath ?? '~/.dsh/bot/state.json'), 'utf8'))
+        id = state.bots?.[sink.botId]?.sessionId ?? id
       } catch (error) {
         log(`读取 bot state 失败: ${error.message}`)
       }
@@ -56,21 +67,51 @@ export function apply(ctx, initialConfig = {}) {
 
   const loop = createDeliveryLoop({
     queue,
-    sink: initialConfig.sink ?? 'chief',
+    sink: config.delivery.sink,
     resolveAgent,
     deliver,
-    limit: initialConfig.limits?.batchCount ?? 200,
-    intervalMs: initialConfig.intervalMs ?? 500,
+    limit: config.delivery.limit,
+    intervalMs: config.delivery.intervalMs,
     log,
   })
 
-  log(`started sink=${initialConfig.sink ?? 'chief'} queue=${queue.path}`)
+  log(`started sink=${config.delivery.sink} interval=${config.delivery.intervalMs}ms queue=${queue.path}`)
   ctx.effect(() => () => {
     loop.stop()
     queue.close()
   })
 }
 
-function expand(path) {
-  return path.startsWith('~') ? join(homedir(), path.slice(1)) : path
+/** 设置界面的扁平字段 → 分层配置。没填的字段不覆盖，交给默认值。 */
+function fromSettings(settings = {}) {
+  const sink = settings.sink ?? undefined
+  return {
+    stateDir: settings.stateDir ?? undefined,
+    routes: sink ? [{ sources: ['*'], sink }] : undefined,
+    delivery: { intervalMs: settings.intervalMs, limit: settings.batchCount, sink },
+    limits: {
+      batchCount: settings.batchCount,
+      batchChars: settings.batchChars,
+      backlogCount: settings.backlogCount,
+      backlogChars: settings.backlogChars,
+    },
+    sources: {
+      telegram: { enabled: settings.telegramEnabled, intervalMs: settings.telegramIntervalMs },
+      feishu: { enabled: settings.feishuEnabled, intervalMs: settings.feishuIntervalMs },
+    },
+  }
+}
+
+/** 回写到共用配置文件的部分：只有守护进程关心的那些。 */
+function toPatch(config) {
+  return {
+    stateDir: config.stateDir,
+    delivery: config.delivery,
+    limits: config.limits,
+    routes: config.routes,
+    sources: {
+      telegram: { enabled: config.sources.telegram.enabled, intervalMs: config.sources.telegram.intervalMs },
+      feishu: { enabled: config.sources.feishu.enabled, intervalMs: config.sources.feishu.intervalMs },
+    },
+  }
 }

@@ -166,6 +166,36 @@ agent 侧（插件，很薄）
 
 ---
 
+## 配置：三层，没有一处写死
+
+优先级 **环境变量 > 配置文件 / 设置界面 > 代码里的默认值**。要改行为，改这三层中的一层；代码里不出现魔法数字。
+
+### 设置界面
+
+插件声明了 `.volatile()` 字段，DSH 的「设置」里会自动出现表单，不用写 UI。能改：投递间隔、单批条数与字数、积压放大阈值、每路来源的开关与轮询间隔、目标 sink。
+
+改完之后插件会把值回写到 `~/.dsh/state/personal-context/config.json`——**和守护进程读的是同一份文件**，所以界面改一次，两边都跟着变。
+
+### 环境变量（凭据只走这里）
+
+| 变量 | 作用 | 默认 |
+|---|---|---|
+| `PC_STATE_DIR` | 状态目录 | `~/.dsh/state/personal-context` |
+| `PC_CONFIG` | 守护进程读的配置文件 | `<stateDir>/config.json` |
+| `PC_HTTP_LISTEN` | 收事件的地址 | `127.0.0.1:7788` |
+| `PC_HTTP_TOKEN` | 收事件的 token | 首次启动生成，存 `<stateDir>/token`（0600） |
+| `PC_SINK` | 投递目标名 | `chief` |
+| `PC_DELIVERY_INTERVAL_MS` | 投递循环间隔 | `500` |
+| `PC_BATCH_COUNT` / `PC_BATCH_CHARS` | 单批上限 | `50` / `4000` |
+| `PC_BACKLOG_COUNT` / `PC_BACKLOG_CHARS` | 积压放大时的上限 | `200` / `20000` |
+| `PC_TELEGRAM_ENABLED` / `PC_TELEGRAM_INTERVAL_MS` | TG 开关与节奏 | `false` / `8000` |
+| `PC_TELEGRAM_API_ID` / `PC_TELEGRAM_API_HASH` / `PC_TELEGRAM_SESSION` | TG 凭据与会话文件 | 无（启用即必填） |
+| `PC_FEISHU_ENABLED` / `PC_FEISHU_INTERVAL_MS` | 飞书开关与节奏 | `false` / `5000` |
+| `PC_CREDENTIAL_CHATS` / `PC_CREDENTIAL_PATTERNS` | 凭据类判定规则 | `777000` / 验证码词表 |
+
+启用了某路来源却缺凭据时，**启动直接报错并点名缺什么**，不会静默关掉。
+
+
 ## 现在做 / 现在不做
 
 **第一批来源（已定）**：Telegram、飞书。屏幕、麦克风、邮件都推后。

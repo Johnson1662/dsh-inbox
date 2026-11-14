@@ -1,8 +1,8 @@
 import { createServer } from 'node:http'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { configPath, expandHome, loadConfig } from '../core/config.js'
 import { createCredentialRules, normalize, stripCredentials } from '../core/envelope.js'
 import { openQueue } from '../core/queue.js'
 
@@ -10,9 +10,9 @@ const MAX_BODY = 1024 * 1024
 
 /** 组合根：只接线，不放业务逻辑。队列、信封、凭据规则都在 core 里。 */
 export function createDaemon(config, { log = () => {} } = {}) {
-  const stateDir = expand(config.stateDir ?? '~/.dsh/state/personal-context')
+  const stateDir = expandHome(config.stateDir)
   mkdirSync(stateDir, { recursive: true })
-  const token = config.http?.token ?? readOrCreateToken(stateDir, log)
+  const token = config.http.token ?? readOrCreateToken(stateDir, log)
   const queue = openQueue(join(stateDir, 'context.sqlite'), { routes: config.routes ?? [] })
   const credentials = createCredentialRules(config.credentials)
 
@@ -63,7 +63,7 @@ export function createDaemon(config, { log = () => {} } = {}) {
     token,
     stateDir,
     listen(port) {
-      const wanted = port ?? Number((config.http?.listen ?? '127.0.0.1:7788').split(':').pop())
+      const wanted = port ?? Number(config.http.listen.split(':').pop())
       return new Promise(resolve => {
         server.listen(wanted, '127.0.0.1', () => {
           log(`listening on 127.0.0.1:${server.address().port}`)
@@ -127,15 +127,13 @@ function readOrCreateToken(stateDir, log) {
   return token
 }
 
-function expand(path) {
-  return path.startsWith('~') ? join(homedir(), path.slice(1)) : path
-}
-
 if (process.argv[1]?.endsWith(join('daemon', 'index.js'))) {
-  const configPath = process.argv[2] ?? 'config.json'
-  const config = JSON.parse(readFileSync(configPath, 'utf8'))
+  const file = process.argv[2] ?? process.env.PC_CONFIG
+  const overrides = file ? JSON.parse(readFileSync(file, 'utf8')) : {}
+  const config = loadConfig(overrides)
   const daemon = createDaemon(config, { log: message => console.log(`${new Date().toISOString()} ${message}`) })
   const port = await daemon.listen()
+  console.log(`config: ${configPath(config)}`)
   process.on('SIGTERM', () => daemon.close().then(() => process.exit(0)))
   process.on('SIGINT', () => daemon.close().then(() => process.exit(0)))
   console.log(`token: ${daemon.token}`)

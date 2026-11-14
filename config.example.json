@@ -1,19 +1,15 @@
 {
   "stateDir": "~/.dsh/state/personal-context",
   "http": { "listen": "127.0.0.1:7788" },
+  "delivery": { "intervalMs": 500, "limit": 200, "sink": "chief" },
+  "limits": { "batchCount": 50, "batchChars": 4000, "backlogCount": 200, "backlogChars": 20000 },
   "routes": [{ "sources": ["*"], "sink": "chief" }],
-  "sinks": {
-    "chief": { "kind": "dsh-session", "botId": "chief" }
-  },
-  "limits": {
-    "batchCount": 50,
-    "batchChars": 4000,
-    "backlogCount": 200,
-    "backlogChars": 20000
-  },
   "credentials": {
     "chats": ["777000"],
     "patterns": ["验证码|校验码|动态码|密码|口令|passcode|verification code|\\botp\\b"]
   },
-  "sources": {}
+  "sources": {
+    "telegram": { "enabled": true, "intervalMs": 8000 },
+    "feishu": { "enabled": true, "intervalMs": 5000 }
+  }
 }
