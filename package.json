@@ -1,0 +1,26 @@
+{
+  "name": "dsh-personal-context",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "个人上下文基础设施：来源 → 队列 → 某个 agent 的某个会话",
+  "main": "src/plugin/index.js",
+  "exports": {
+    ".": "./src/plugin/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": ["src", "sources", "README.md"],
+  "dsh": {
+    "bundle": {
+      "patch": "./src/plugin/cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node --test",
+    "daemon": "node src/daemon/index.js"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-agent": "*",
+    "@deepseek-ai/dsh-llm": "*"
+  }
+}

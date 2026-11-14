@@ -1,0 +1,19 @@
+# dsh-personal-context bundle layer.
+#
+# 把队列里的待投事件渲染成一条消息，投进指定会话，唤醒那个 agent。
+# 队列由常驻的 daemon 写入；插件只做投递，不判断内容。
+- insert:
+    - id: dsh-personal-context
+      name: dsh-personal-context
+      config:
+        enabled: true
+        stateDir: ~/.dsh/state/personal-context
+        sink: chief
+        intervalMs: 500
+        routes:
+          - sources: ["*"]
+            sink: chief
+        sinks:
+          chief:
+            kind: dsh-session
+            botId: chief
