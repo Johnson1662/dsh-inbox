@@ -1,0 +1,7 @@
+[Unit]
+Description=Personal Context 每日快照（条数守恒 + 来源状态）
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Development/Personal-Context
+EnvironmentFile=%h/.dsh/state/personal-context/sources.env
+ExecStart=/bin/bash %h/Development/Personal-Context/scripts/daily.sh

@@ -7,7 +7,7 @@ import { createDeliveryLoop } from './loop.js'
 
 export { Config } from './config-schema.js'
 export const name = 'dsh-personal-context'
-export const inject = ['agents']
+export const inject = ['agents', 'sessionPersistence']
 
 /**
  * 组合根。设置界面里的字段（见 config-schema.js）在这里摊成配置层，

@@ -13,8 +13,10 @@ if [ -n "$pid" ]; then
 fi
 sleep 1
 echo "重新启动…"
-setsid nohup env DISPLAY="${DISPLAY:-:0}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
-  "$app" >/tmp/dsh-restart.log 2>&1 < /dev/null &
+# 原样继承调用者的环境：GPU/ibus 这些坑都是环境不全造成的，别自作聪明裁剪
+export DISPLAY="${DISPLAY:-:0}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+setsid nohup "$app" >/tmp/dsh-restart.log 2>&1 < /dev/null &
 sleep 5
 pgrep -f '/opt/DeepSeek Harness/deepseek-harness$' >/dev/null \
   && echo "DSH 已起来" \

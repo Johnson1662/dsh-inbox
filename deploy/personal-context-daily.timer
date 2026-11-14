@@ -1,0 +1,7 @@
+[Unit]
+Description=每天给 Personal Context 拍一次快照
+[Timer]
+OnCalendar=*-*-* 04:10:00
+Persistent=true
+[Install]
+WantedBy=timers.target
