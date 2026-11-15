@@ -2,7 +2,7 @@
 
 个人 agent 的**上下文基础设施**：把各来源的信息收进来，中转一下，投进某个 agent 的某个会话。
 
-**状态：设计阶段。没有代码，没有安装，没有开启采集。**
+**状态：已跑起来。** 采集常驻（systemd 用户服务，开机自启），两路来源在跑（Telegram 8 秒、飞书 5 秒），设置界面在 DSH 的「设置 → 个人上下文」里，队列条数守恒。
 
 ---
 
@@ -208,6 +208,8 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 
 启用了某路来源却缺凭据时，**启动直接报错并点名缺什么**，不会静默关掉。
 
+**凭据校验只在守护进程一侧做**。插件要投递，但不认识来源，它看不到 `sources.env`——让插件也校验凭据，只会让插件行在 DSH 里变成「异常」。
+
 **来源的开与关不在环境变量里**，在设置界面（写 `config.json`）。环境变量只放凭据与默认节奏——因为环境变量优先级最高，一旦把开关写进 `sources.env`，界面上的开关就再也关不掉了（实测踩过）。
 
 ### 来源进程拿到什么
@@ -254,9 +256,3 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 - 代码仓库设计（模块、接口、接缝、测试面）：[docs/repo-design.md](./docs/repo-design.md)
 - 架构决策记录：[docs/adr/](./docs/adr/) —— 为什么两个程序、为什么只投 agent、为什么飞书只能轮询、为什么零丢失
 - Agent 工具配置：[AGENTS.md](./AGENTS.md)、[docs/agents/](./docs/agents/)
-
-## 前身与位置
-
-- 前身插件源码：`/home/johnson/.dsh/bot/workspace/dsh-inbox-bundle`（采集进程与投递可复用）
-- 前身安装位置：`/home/johnson/.dsh/profiles/desktop/node_modules/dsh-inbox`
-- 本项目：`/home/johnson/Development/Personal-Context`（本目录）

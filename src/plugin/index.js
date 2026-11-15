@@ -17,7 +17,15 @@ export const inject = ['agents', 'sessionPersistence', 'webServer']
 export function apply(ctx, pluginConfig = {}) {
   if (pluginConfig.enabled === false) return
 
-  const config = loadConfig(fromSettings(pluginConfig))
+  // 插件不碰来源凭据：配置有问题也只影响展示，不该让整行插件起不来
+  let config
+  try {
+    config = loadConfig(fromSettings(pluginConfig))
+  } catch (error) {
+    config = loadConfig({})
+    pluginConfig = { ...pluginConfig }
+    queueMicrotask(() => log(`插件配置有误，按默认值跑：${error?.message ?? error}`))
+  }
   const stateDir = expandHome(config.stateDir)
   mkdirSync(stateDir, { recursive: true })
 

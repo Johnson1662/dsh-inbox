@@ -49,11 +49,12 @@ test('每个来源可以单独开关与调节节奏', () => {
 
 test('开启了但缺凭据，启动即失败并点名缺什么', () => {
   assert.throws(
-    () => loadConfig({}, { env: { PC_TELEGRAM_ENABLED: 'true' } }),
+    () => loadConfig({}, { env: { PC_TELEGRAM_ENABLED: 'true' }, requireCredentials: true }),
     /telegram.*apiId/,
   )
   const config = loadConfig({}, {
     env: { PC_TELEGRAM_ENABLED: 'true', PC_TELEGRAM_API_ID: '1', PC_TELEGRAM_API_HASH: 'h', PC_TELEGRAM_SESSION: '/tmp/x' },
+    requireCredentials: true,
   })
   assert.equal(enabledSources(config).length, 1)
 })
@@ -78,4 +79,9 @@ test('回写配置：保留已有键，原子替换', () => {
   assert.equal(next.delivery.intervalMs, 250)
   assert.deepEqual(JSON.parse(readFileSync(path, 'utf8')), next)
   rmSync(dir, { recursive: true, force: true })
+})
+
+test('插件侧不校验来源凭据：看不到 sources.env 也照样能起', () => {
+  const config = loadConfig({ sources: { telegram: { enabled: true, intervalMs: 8000 } } }, { env: {} })
+  assert.equal(config.sources.telegram.enabled, true)
 })

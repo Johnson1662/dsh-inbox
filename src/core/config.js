@@ -122,14 +122,16 @@ export function merge(base, ...layers) {
  * @param overrides 插件配置或配置文件内容
  * @param options.env 环境变量来源（测试可注入）
  */
-export function loadConfig(overrides = {}, { env = process.env } = {}) {
+export function loadConfig(overrides = {}, { env = process.env, requireCredentials = false } = {}) {
   // 插件配置可能拿到的是响应式字段（带 .get()）
   const plain = unwrap(overrides)
   const config = merge(DEFAULTS, plain, readEnv(env))
   config.routes = plain.routes ?? DEFAULTS.routes
 
+  // 凭据校验只属于真正去连来源的那一侧（守护进程）。插件只负责投递，
+  // 它看不到 sources.env，没理由因为“TG 缺 apiHash”就整行启动失败。
   for (const [name, source] of Object.entries(config.sources)) {
-    if (!source.enabled) continue
+    if (!requireCredentials || !source.enabled) continue
     const missing = (REQUIRED[name] ?? []).filter(field => !source[field])
     if (missing.length) {
       throw new Error(`来源 ${name} 已启用但缺少配置：${missing.join(', ')}（用环境变量或配置文件提供）`)
