@@ -18,60 +18,69 @@ const SIBLING_PACKAGES = join(dirname(fileURLToPath(import.meta.url)), '..', '..
 
 export const DEFAULT_SOURCE_DIRS = [PROFILE_MODULES, SIBLING_PACKAGES]
 
+/** 一个目录下所有可能是包的目录：平铺的，以及 @scope/pkg 两层。 */
+function candidateDirs(dir) {
+  let entries
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return []
+  }
+  const out = []
+  for (const name of entries) {
+    if (name.startsWith('.')) continue
+    if (!name.startsWith('@')) {
+      out.push(join(dir, name))
+      continue
+    }
+    try {
+      for (const inner of readdirSync(join(dir, name))) out.push(join(dir, name, inner))
+    } catch {}
+  }
+  return out
+}
+
+/** 分组目录（packages/sources/telegram 这类）里的下一层。 */
+function groupedDirs(pkgDir) {
+  try {
+    return readdirSync(pkgDir)
+      .filter(name => !name.startsWith('.'))
+      .map(name => join(pkgDir, name))
+  } catch {
+    return []
+  }
+}
+
 /** 扫若干目录，收集所有带 dsh.source 声明的包。重复名字以先出现的为准。 */
 export function loadSourceManifests({ dirs = DEFAULT_SOURCE_DIRS } = {}) {
   const found = new Map()
   for (const dir of dirs) {
-    let entries
-    try {
-      entries = readdirSync(dir)
-    } catch {
-      continue
-    }
-    const candidates = []
-    for (const name of entries) {
-      if (name.startsWith('.')) continue
-      if (name.startsWith('@')) {
-        // scoped：@scope/pkg
-        try {
-          for (const inner of readdirSync(join(dir, name))) candidates.push(join(dir, name, inner))
-        } catch {}
-      } else {
-        candidates.push(join(dir, name))
-      }
-    }
-    for (const pkgDir of candidates) {
+    for (const pkgDir of candidateDirs(dir)) {
+      // 有 package.json 就不是分组目录，不必再往下看
       if (collect(pkgDir, found)) continue
-      // 分组目录（packages/sources/telegram 这类）：往里再看一层
-      let nested = []
-      try {
-        nested = readdirSync(pkgDir)
-      } catch {
-        continue
-      }
-      for (const inner of nested) {
-        if (inner.startsWith('.')) continue
-        collect(join(pkgDir, inner), found)
-      }
+      for (const inner of groupedDirs(pkgDir)) collect(inner, found)
     }
   }
   return [...found.values()]
 }
 
-function collect(pkgDir, found) {
+/** 读一个目录的 package.json：没有 → undefined，读坏了 → null。 */
+function readManifest(pkgDir) {
   const manifestPath = join(pkgDir, 'package.json')
-  if (!existsSync(manifestPath)) return false
-  let pkg
+  if (!existsSync(manifestPath)) return undefined
   try {
-    pkg = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    return JSON.parse(readFileSync(manifestPath, 'utf8'))
   } catch {
-    return true
+    return null
   }
+}
+
+/** 包声明 → 我们认识的来源清单。没有 dsh.source 就不是来源包。 */
+function toSourceManifest(pkgDir, pkg) {
   const source = pkg?.dsh?.source
-  if (!source?.name) return true
-  if (found.has(source.name)) return true
+  if (!source?.name) return null
   const entry = join(pkgDir, source.entry ?? '')
-  found.set(source.name, {
+  return {
     name: String(source.name),
     label: String(source.label ?? source.name),
     package: String(pkg.name ?? ''),
@@ -81,7 +90,16 @@ function collect(pkgDir, found) {
     dir: pkgDir,
     fields: Array.isArray(source.fields) ? source.fields : [],
     present: existsSync(entry),
-  })
+  }
+}
+
+/** 收下一个包。返回「这个目录算不算包目录」，调用方据此决定要不要再往里看。 */
+function collect(pkgDir, found) {
+  const pkg = readManifest(pkgDir)
+  if (pkg === undefined) return false
+  if (pkg === null) return true
+  const manifest = toSourceManifest(pkgDir, pkg)
+  if (manifest && !found.has(manifest.name)) found.set(manifest.name, manifest)
   return true
 }
 

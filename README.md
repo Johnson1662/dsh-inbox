@@ -111,10 +111,12 @@ curl -X POST http://127.0.0.1:7788/v1/event \
 三个 HTTP 动作，不需要 SDK：
 
 ```
-POST /v1/take   {"sink":"…","limit":50}  → {"ticket":"…","events":[…],"backlog":N}
-POST /v1/done   {"ticket":"…","ids":[…]} → {"delivered":n,"released":m}
-POST /v1/retry  {"ticket":"…","reason":"…"}
+POST /v1/take   {"sink":"…","limit":50}   → {"ticket":"…","events":[…],"backlog":N,"expiresAt":"…"}
+POST /v1/done   {"ticket":"…","ids":[…]}  → {"delivered":n,"released":m}
+POST /v1/retry  {"ticket":"…","reason":"…"} → {"released":n,"ids":[…]}
 ```
+
+事件里每条的字段：`id / source / at / actor / text / meta / attempts`。这几行形状由 `packages/core/test/contract.test.js` 钉住——改它就得同时改文档。
 
 ```js
 const call = (path, body) => fetch(`http://127.0.0.1:7788${path}`, {

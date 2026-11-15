@@ -46,62 +46,71 @@ export function createDaemon(config, { log = () => {} } = {}) {
     })
   })
 
+  /** 投一条事件：来源进程写出来的信封，或任何能 curl 的程序。 */
+  async function ingestEvent(req, res) {
+    const raw = await readBody(req)
+    let parsed
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      return send(res, 400, { error: 'invalid_json' })
+    }
+    const envelope = normalize(parsed)
+    if (envelope.error) return send(res, 400, { error: envelope.error })
+    const result = queue.ingest(stripCredentials(envelope, credentials))
+    log(`ingest ${result.id} sink=${result.sink} duplicate=${result.duplicate}`)
+    return send(res, 200, result)
+  }
+
+  // ---- 取货 / 回话：适配器只认这三个端点，不碰数据库 ----
+  async function take(req, res) {
+    const body = await json(req)
+    if (body.error) return send(res, 400, { error: body.error })
+    const sink = body.value?.sink ?? 'chief'
+    const limit = clampInt(body.value?.limit, 1, 1000, 50)
+    const leaseMs = clampInt(body.value?.leaseMs, 1000, 3_600_000, config.delivery.leaseMs ?? 300_000)
+    return send(res, 200, queue.takeBatch(sink, limit, { leaseMs }))
+  }
+
+  async function done(req, res) {
+    const body = await json(req)
+    if (body.error) return send(res, 400, { error: body.error })
+    const { ticket, ids } = body.value ?? {}
+    if (!ticket) return send(res, 400, { error: 'missing_ticket' })
+    const result = queue.done(ticket, Array.isArray(ids) ? ids.map(String) : [])
+    log(`done ${ticket} delivered=${result.delivered} released=${result.released}`)
+    return send(res, 200, result)
+  }
+
+  async function retry(req, res) {
+    const body = await json(req)
+    if (body.error) return send(res, 400, { error: body.error })
+    const { ticket, reason } = body.value ?? {}
+    if (!ticket) return send(res, 400, { error: 'missing_ticket' })
+    const result = queue.retry(ticket, reason ?? '')
+    log(`retry ${ticket} released=${result.released} why=${String(reason ?? '').slice(0, 120)}`)
+    return send(res, 200, result)
+  }
+
+  const ROUTES = new Map([
+    ['GET /v1/sinks', (_req, res) => send(res, 200, { sinks: queue.sinks() })],
+    ['GET /v1/stats', (_req, res) => send(res, 200, { ...queue.stats(), sources: sources.status() })],
+    ['POST /v1/take', take],
+    ['POST /v1/done', done],
+    ['POST /v1/retry', retry],
+    ['POST /v1/event', ingestEvent],
+  ])
+
   async function handle(req, res) {
     const url = new URL(req.url, 'http://127.0.0.1')
+    // 健康检查不鉴权：它要能被最笨的探活用，且不暴露任何数据
     if (req.method === 'GET' && url.pathname === '/v1/health') {
       return send(res, 200, { ok: true, queue: queue.path })
     }
     if (!authorized(req)) return send(res, 401, { error: 'unauthorized' })
-
-    if (req.method === 'GET' && url.pathname === '/v1/sinks') {
-      return send(res, 200, { sinks: queue.sinks() })
-    }
-    if (req.method === 'GET' && url.pathname === '/v1/stats') {
-      return send(res, 200, { ...queue.stats(), sources: sources.status() })
-    }
-    // ---- 取货 / 回话：适配器只认这三个端点，不碰数据库 ----
-    if (req.method === 'POST' && url.pathname === '/v1/take') {
-      const body = await json(req)
-      if (body.error) return send(res, 400, { error: body.error })
-      const sink = body.value?.sink ?? 'chief'
-      const limit = clampInt(body.value?.limit, 1, 1000, 50)
-      const leaseMs = clampInt(body.value?.leaseMs, 1000, 3_600_000, config.delivery.leaseMs ?? 300_000)
-      return send(res, 200, queue.takeBatch(sink, limit, { leaseMs }))
-    }
-    if (req.method === 'POST' && url.pathname === '/v1/done') {
-      const body = await json(req)
-      if (body.error) return send(res, 400, { error: body.error })
-      const { ticket, ids } = body.value ?? {}
-      if (!ticket) return send(res, 400, { error: 'missing_ticket' })
-      const result = queue.done(ticket, Array.isArray(ids) ? ids.map(String) : [])
-      log(`done ${ticket} delivered=${result.delivered} released=${result.released}`)
-      return send(res, 200, result)
-    }
-    if (req.method === 'POST' && url.pathname === '/v1/retry') {
-      const body = await json(req)
-      if (body.error) return send(res, 400, { error: body.error })
-      const { ticket, reason } = body.value ?? {}
-      if (!ticket) return send(res, 400, { error: 'missing_ticket' })
-      const result = queue.retry(ticket, reason ?? '')
-      log(`retry ${ticket} released=${result.released} why=${String(reason ?? '').slice(0, 120)}`)
-      return send(res, 200, result)
-    }
-
-    if (req.method === 'POST' && url.pathname === '/v1/event') {
-      const raw = await readBody(req)
-      let parsed
-      try {
-        parsed = JSON.parse(raw)
-      } catch {
-        return send(res, 400, { error: 'invalid_json' })
-      }
-      const envelope = normalize(parsed)
-      if (envelope.error) return send(res, 400, { error: envelope.error })
-      const result = queue.ingest(stripCredentials(envelope, credentials))
-      log(`ingest ${result.id} sink=${result.sink} duplicate=${result.duplicate}`)
-      return send(res, 200, result)
-    }
-    return send(res, 404, { error: 'not_found' })
+    const route = ROUTES.get(`${req.method} ${url.pathname}`)
+    if (!route) return send(res, 404, { error: 'not_found' })
+    return route(req, res)
   }
 
   function authorized(req) {

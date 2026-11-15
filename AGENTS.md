@@ -81,11 +81,12 @@
 - **错误要具体**。`invalid_at` 比 `bad request` 有用；启动失败要点名缺哪个环境变量。
 - **中文注释解释「为什么」**，不复述代码。
 - 不格式化全文件。改动只落在相关行，避免 diff 噪音。
+- **动了对外形状就更新 `test/contract.test.js`** —— 信封字段、`take / done / retry` 的返回、错误码，都由它逐字钉住。红了说明你在改契约：先写 ADR，再改测试和文档。
 
 ## 验证（必须真跑，不许声称）
 
 ```bash
-npm run check     # JS 与 Python 语法全量 + 143 个用例
+npm run check     # JS 与 Python 语法全量 + 全部用例
 npm test          # 只要测试
 ```
 

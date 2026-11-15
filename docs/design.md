@@ -117,7 +117,7 @@ agent 侧（插件，很薄）
 ```
 POST /v1/take   {"sink":"chief","limit":50}   → {"ticket":"t:…","events":[…],"backlog":N,"expiresAt":"…"}
 POST /v1/done   {"ticket":"t:…","ids":[…]}    → {"delivered":n,"released":m}
-POST /v1/retry  {"ticket":"t:…","reason":"…"} → {"released":n}
+POST /v1/retry  {"ticket":"t:…","reason":"…"} → {"released":n,"ids":[…]}
 ```
 
 - **小票**：`take` 拿到的这批被划走，别人取不到；`done` 只把点名的标已投，没点名的自动放回。

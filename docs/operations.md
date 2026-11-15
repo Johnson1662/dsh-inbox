@@ -115,4 +115,4 @@ docs/                         设计说明、架构决策记录
 
 见 [CONTRIBUTING.md](../CONTRIBUTING.md)。两条硬约定在那里写清了：来源进程不依赖本项目与任何 agent 客户端；队列只有一个写者。
 
-提交前跑 `npm run check`（全量语法 + 143 个用例）。
+提交前跑 `npm run check`（全量语法 + 全部用例）。
