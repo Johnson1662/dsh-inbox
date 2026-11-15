@@ -94,6 +94,18 @@ npm test          # 只要测试
 
 动到打包/安装时看 [CONTRIBUTING.md](CONTRIBUTING.md#装进-dsh)。
 
+## 代码索引（codegraph）
+
+仓库已建索引，`.codegraph/` 本地生成、不入库。查符号、看调用链比 rg 快：
+
+```bash
+codegraph explore "投递循环"      # 相关符号源码 + 调用路径
+codegraph query createDeliveryLoop
+codegraph sync                    # 改了代码增量更新，不用重建
+```
+
+新 clone 下来第一次：`codegraph init`。
+
 ## 可选：坏味道扫描
 
 ```bash
