@@ -100,7 +100,7 @@ npm test          # 只要测试
 npm run rot     # 配置在 .fuckucoderc.json（已排除测试与文档）
 ```
 
-跑的是**我们自己的 fork**：[Johnson1662/fuck-u-code](https://github.com/Johnson1662/fuck-u-code) tag `v2.2.2-fork.1`。上游自 2026-09-07 起没再动过，而它的 2.2.2 在 npm / npx 下是坏的：wasm 路径写死成包内 `node_modules`（那是 pnpm 的布局），npm 会提升依赖 → 语法解析全部 ENOENT → **静默退化成正则**，嵌套函数的结束位置被算到外层作用域末尾（`record()` 报 250 行、实际 20 行）。
+跑的是**我们自己的 fork**：[Johnson1662/fuck-u-code](https://github.com/Johnson1662/fuck-u-code) tag `v2.2.2-fork.1`。上游自 2026-09-07 起没再动过（修复提过 [PR #165](https://github.com/Done-0/fuck-u-code/pull/165)，已关），而它的 2.2.2 在 npm / npx 下是坏的：wasm 路径写死成包内 `node_modules`（那是 pnpm 的布局），npm 会提升依赖 → 语法解析全部 ENOENT → **静默退化成正则**，嵌套函数的结束位置被算到外层作用域末尾（`record()` 报 250 行、实际 20 行）。
 
 fork 里改了两处：
 
