@@ -1,28 +1,51 @@
 # dsh-personal-context
 
-一个用 [Node.js](https://nodejs.org) 写的常驻消息管道：把你在 **Telegram** 和 **飞书** 里收到的消息，在几秒内投进你的 AI agent 会话，让 agent 自己开始处理，而不是等你复述一遍。以 [MIT 许可](LICENSE) 发布。
+**Personal agent 的上下文基础设施。** 一个用 [Node.js](https://nodejs.org) 写的常驻管道：**任意来源 → 统一信封 → 常驻队列 → 任意 agent 的任意会话**，以 [MIT 许可](LICENSE) 发布。
 
-写给每天用 AI agent 干活、但信息散落在各种聊天软件里的人。当前版本 0.7.5（2026 年 11 月）。
+外部世界的信息每天都在发生——群消息、邮件、日程变更、网页更新、CI 挂了——但它们进不了 agent 的视野：agent 只看得见你在对话框里打给它的字。这个项目把「把信息送进 agent」做成一条可扩展的管道：两端各一个几十行就能实现的契约，中间一个常驻中枢。
 
-**它不是什么**：不是聊天机器人，不是定时任务，不是把消息转发到手机的推送服务，也不是一个需要你在对话框里手动调用的工具。
+**当前自带的来源只有两个：Telegram、飞书。** 这是两个最早的实现，不是这个项目的边界——加第三、第四、第十路来源，不改中枢一行代码。
 
 ---
 
 ## 目录
 
+- [能接什么](#能接什么)
 - [为什么需要它](#为什么需要它)
 - [它长什么样](#它长什么样)
 - [快速开始](#快速开始)
 - [工作原理](#工作原理)
+- [契约一：接入一个来源](#契约一接入一个来源)
+- [契约二：接入一个-agent](#契约二接入一个-agent)
 - [配置](#配置)
 - [命令](#命令)
 - [排错](#排错)
-- [接入新来源](#接入新来源)
-- [接入其他 agent](#接入其他-agent)
 - [项目状态](#项目状态)
 - [参与](#参与)
 - [目录结构](#目录结构)
 - [许可](#许可)
+
+---
+
+## 能接什么
+
+凡是「**有新东西出现**」的地方，都能接。接入方式有三种，从重到轻：
+
+| 想要的来源 | 接入方式 | 工作量 |
+|---|---|---|
+| 邮件（IMAP）、日历（CalDAV）、RSS、网页变更监控 | 写一个 worker 包，轮询 | 几十到两百行 |
+| 屏幕、麦克风（OCR / 语音转写） | 写一个 worker 包，本地跑 | 取决于采集端 |
+| 自家服务的 webhook、CI 状态、Git 事件 | `POST /v1/event` 直接投递 | **不用写代码** |
+| 手机快捷指令 / iOS 自动化 / iOS 快捷指令 | `POST /v1/event`（同局域网） | **不用写代码** |
+| 别人写好的来源包 | `npm i dsh-personal-context-source-xxx` | **一行** |
+| 现有的 Telegram、飞书 | 已内置 | **零** |
+
+```
+今天可用        telegram   feishu
+明天加一个      imap   caldav   rss   web-monitor   ci-hook   screen-ocr   voice   …
+```
+
+**为什么能做到**：来源只负责「发现新东西并写一行 JSON」，它不知道队列、路由、收件人是谁；投递端只负责「把一批消息放进某个会话」，它不知道消息从哪来。两端互不认识，也不认识中枢的表结构。所以加任何一端，另一端都不用动。
 
 ---
 
@@ -40,13 +63,13 @@
 
 - **定时任务**：14:10 那次扫描才发现，而且多半只记一行日志，没人读。
 - **MCP**：agent 不会知道，直到你 15:30 开完会想起来，自己再跟它说一遍——而你可能压根没看到那条消息。
-- **本方案**：14:03:08 左右（一个轮询周期内）消息进入队列，0.5 秒内作为一条消息投进你指定的会话，**agent 当场开始这一轮**。你人在开会，处理已经在发生。
+- **本方案**：14:03:08 左右消息进入队列，0.5 秒内作为一条消息投进你指定的会话，**agent 当场开始这一轮**。你人在开会，处理已经在发生。
 
 ### 扫描不思考，思考不扫描
 
 定时任务把两件事绑在一起：每次扫描都是一次大模型回合。于是两头都受限——扫得太勤，token 空烧（一天 288 次空跑，每次几千 token，换来的全是「没有新消息」）；扫得太稀，消息就卡在空档里。
 
-这里把它们拆开：轮询是一个 python / node 普通进程，零 token，可以几秒一次；只有真有消息时，才把它投进会话、唤醒 agent 跑一轮。**成本与事件数成正比，与时间无关。**一天 10 条消息，就只花 10 次唤醒；一天 0 条，一次都不花——而扫描一直在跑。
+这里把它们拆开：轮询是一个普通进程，零 token，可以几秒一次；只有真有消息时，才唤醒 agent 跑一轮。**成本与事件数成正比，与时间无关**：一天 10 条消息就只花 10 次唤醒，一天 0 条就一次都不花——而扫描一直在跑。
 
 ---
 
@@ -63,7 +86,7 @@
 · 项目群 | 陈 | 14:05 | 合同我看过了
 ```
 
-**设置界面**（在 agent 客户端里，每路来源一张卡）：
+**设置界面**（在 agent 客户端里，每路来源一张卡；新增来源会自动多一张）：
 
 ```
 设置 → 个人上下文
@@ -110,8 +133,8 @@ $ personal-context status
   node -v                     # 应输出 v22 或更高
   ```
 
-- **DSH 桌面端**（[DeepSeek Harness](https://deepseek.com)，一个桌面 AI agent 客户端）。本项目当前以它作为投递端。
-- 你要接的来源的凭据（见下）。可以只接一路。
+- **DSH 桌面端**（[DeepSeek Harness](https://deepseek.com)，一个桌面 AI agent 客户端）。本项目当前以它作为投递端；换别的 agent 见[契约二](#契约二接入一个-agent)。
+- 你要接的来源的凭据。可以只接一路，也可以先只装来看界面。
 
 ### 1. 拿到代码
 
@@ -140,7 +163,7 @@ dsh-personal-context
 node packages/core/bin/personal-context.mjs init
 ```
 
-它会依次问你凭据 → 写 `~/.dsh/state/personal-context/sources.env`（权限 0600）→ 安装开机自启（Linux 用 systemd 用户服务，macOS 用 launchd）→ 启动 → 打印状态。已有配置不会被覆盖。
+依次问你凭据 → 写 `~/.dsh/state/personal-context/sources.env`（权限 0600）→ 安装开机自启（Linux 用 systemd 用户服务，macOS 用 launchd）→ 启动 → 打印状态。已有配置不会被覆盖。
 
 脚本里跑（非交互）：
 
@@ -157,13 +180,13 @@ DSH **设置 → 个人上下文**：打开要用的来源，选它投给哪个�
 
 ### 5. 验证
 
-往被采集的会话发一条消息。几秒后它应该出现在你选的 agent 会话里，形式如上面的「它长什么样」。
+往被采集的会话发一条消息。几秒后它应该出现在你选的 agent 会话里。
 
 也可以直接查状态：`personal-context status`。
 
 ### 凭据怎么拿
 
-**Telegram**：到 [my.telegram.org](https://my.telegram.org) 创建应用，拿 `api_id` 与 `api_hash`；`session` 是 [Telethon](https://docs.telethon.dev) 的用户会话文件，首次需交互登录一次（`python3 -m pip install telethon` 后按提示输入手机号与验证码）。
+**Telegram**：到 [my.telegram.org](https://my.telegram.org) 创建应用，拿 `api_id` 与 `api_hash`；`session` 是 [Telethon](https://docs.telethon.dev) 的用户会话文件，首次需交互登录（`python3 -m pip install telethon` 后按提示输入手机号与验证码）。
 
 **飞书**：安装 [lark-cli](https://www.npmjs.com/package/@larksuite/cli)（`npm i -g @larksuite/cli`），再执行 `lark-cli config init --as user` 完成一次登录。全程以你本人身份读消息，不依赖机器人事件订阅。
 
@@ -173,9 +196,9 @@ DSH **设置 → 个人上下文**：打开要用的来源，选它投给哪个�
 
 ```
         ┌──────────── 来源（可插拔） ────────────┐
-        │  telegram   feishu   imap   screen …  │   各自是独立进程，
-        └───────────────┬──────────────────────┘   只往标准输出写 JSON
-                        │ 统一信封（唯一数据契约）
+        │  telegram   feishu   imap   screen …  │   各自独立进程 / 或一个 HTTP 调用
+        └───────────────┬──────────────────────┘   只输出统一信封
+                        │
                         ▼
         ┌──────────── 中枢（常驻） ──────────────┐
         │  去重入库 → 按路由排队 → 发小票        │   唯一写者，不认识任何 agent
@@ -186,8 +209,6 @@ DSH **设置 → 个人上下文**：打开要用的来源，选它投给哪个�
         │   DSH 插件   你的脚本   别的 agent …   │   五十行就能接一个
         └───────────────────────────────────────┘
 ```
-
-两端各一个契约，中间一个实现（本仓库）。加一路来源不用改投递，换投递端不用改来源。
 
 ### 六条不变式
 
@@ -204,61 +225,11 @@ DSH **设置 → 个人上下文**：打开要用的来源，选它投给哪个�
 
 ---
 
-## 配置
+## 契约一：接入一个来源
 
-分两层：**开关和节奏在设置界面改，凭据只放环境变量**。
+### 方式 A：一个包（适合轮询、需要常驻）
 
-### 设置界面
-
-对应文件 `~/.dsh/state/personal-context/config.json`。包含：投递间隔、单批条数与字数、积压阈值、每路来源的开关与轮询间隔、每路来源投给哪个会话。
-
-### 环境变量
-
-存在 `sources.env`（权限 0600，不进版本库）：
-
-| 变量 | 用途 |
-|---|---|
-| `PERSONAL_CONTEXT_TELEGRAM_API_ID` / `_API_HASH` / `_SESSION` | Telethon 凭据与会话文件路径 |
-| `PERSONAL_CONTEXT_TELEGRAM_PROXY` | 代理，如 `socks5://127.0.0.1:7897` |
-| `PERSONAL_CONTEXT_TELEGRAM_CHATS` | 只采这些会话，逗号分隔；留空表示全部 |
-| `PERSONAL_CONTEXT_FEISHU_LARK_CLI` | lark-cli 可执行文件路径（默认走 PATH） |
-| `PERSONAL_CONTEXT_STATE_DIR` | 状态目录，默认 `~/.dsh/state/personal-context` |
-| `PERSONAL_CONTEXT_HTTP_LISTEN` | 中枢监听地址，默认 `127.0.0.1:7788` |
-| `PERSONAL_CONTEXT_SOURCE_DIRS` | 额外扫描来源包的目录，冒号分隔 |
-
----
-
-## 命令
-
-```bash
-personal-context init      # 装/改凭据、装开机自启、起服务
-personal-context status    # 队列与来源状态
-personal-context sources   # 每路来源收了多少、丢了多少
-personal-context log -f    # 跟日志
-```
-
-没有全局安装时，用 `node packages/core/bin/personal-context.mjs <命令>`。
-
----
-
-## 排错
-
-| 现象 | 原因与解法 |
-|---|---|
-| 设置里没有「个人上下文」 | 插件没装好，或前端模块加载失败。打开 DSH 的开发者工具看 Console |
-| 消息迟迟不出现，但来源显示运行中 | 目标会话没在 DSH 里打开过。打开它，积压会立刻投进去 |
-| `feishu 未运行` | 没装 `lark-cli` 或未登录：`lark-cli config init --as user` |
-| `telegram` 起不来 | 缺 `telethon`，或 session 文件路径不对 |
-| 7788 端口被占用 | 改 `PERSONAL_CONTEXT_HTTP_LISTEN`，投递端同步改 |
-| 想彻底重来 | 停服务，删 `~/.dsh/state/personal-context/`（⚠️ 会丢队列里的消息） |
-
-日志：`personal-context log -f`，或 `journalctl --user -u personal-context-daemon -f`。
-
----
-
-## 接入新来源
-
-一个来源是一个 npm 包，在 `package.json` 里声明自己：
+在 `package.json` 里声明自己：
 
 ```json
 {
@@ -277,13 +248,30 @@ personal-context log -f    # 跟日志
 }
 ```
 
-同目录下的 `worker.py` 守三条约定：
+同目录下的 `worker.py` 守三条：
 
 1. 配置从 `PERSONAL_CONTEXT_SOURCE_*` 环境变量读（`intervalMs` → `PERSONAL_CONTEXT_SOURCE_INTERVAL_MS`）
 2. **标准输出只写信封**，一行一个 JSON；日志走标准错误
 3. 收到 SIGTERM 干净退出；异常时退出码非 0（中枢会在 10 秒后重启它）
 
-信封格式：
+装进 profile 的 `node_modules` 后会被自动发现：设置页多出一组字段，采集侧多一路进程，**不改中枢一行代码**。
+
+`fields` 里的每一项会直接渲染成设置界面里的控件（布尔 / 数字），加来源的人不用写任何前端代码。
+
+### 方式 B：一次 HTTP 调用（适合推送、脚本、快捷指令）
+
+不想写常驻进程，直接投一条：
+
+```bash
+curl -X POST http://127.0.0.1:7788/v1/event \
+  -H "Authorization: Bearer $(cat ~/.dsh/state/personal-context/token)" \
+  -H 'content-type: application/json' \
+  -d '{"source":"manual","at":"2026-11-15T09:00:00+08:00","actor":"other","text":"正文"}'
+```
+
+同一个信封格式，同样走去重、路由与凭据规则。手机快捷指令、CI 脚本、自家服务的 webhook 都用这条路。
+
+### 信封
 
 ```json
 { "id": "imap:INBOX:42",
@@ -295,26 +283,23 @@ personal-context log -f    # 跟日志
   "meta": { "chat": "收件箱", "sender": "张三" } }
 ```
 
-`id` 是幂等键，`at` 必须带时区。来源**不需要**知道队列、路由、收件人——那是中枢和配置的事。
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `id` | 是 | 幂等键。重采不能变；没有天然 ID 就按内容哈希 |
+| `source` | 是 | 哪一路，小写 |
+| `at` | 是 | 事件发生时间，ISO 8601 **必须带时区** |
+| `actor` | 是 | `self` 本人 / `other` 他人 / `system` |
+| `text` | 否 | 能读的正文 |
+| `ref` | 否 | 原始件位置 |
+| `meta` | 否 | 来源自己的细节，原样保留 |
 
-装进 profile 的 `node_modules` 后会被自动发现：设置页多出一组字段，采集侧多一路进程，不用改一行核心代码。
-
-**不想写常驻进程也可以**：中枢另有一个一次性入口，适合推送型来源、手机快捷指令、临时脚本——
-
-```bash
-curl -X POST http://127.0.0.1:7788/v1/event \
-  -H "Authorization: Bearer $(cat ~/.dsh/state/personal-context/token)" \
-  -H 'content-type: application/json' \
-  -d '{"source":"manual","at":"2026-11-15T09:00:00+08:00","actor":"other","text":"正文"}'
-```
-
-同一个信封格式，同样走去重、路由与凭据规则。
+**来源不需要知道队列、路由、收件人**——那是中枢和配置的事。
 
 ---
 
-## 接入其他 agent
+## 契约二：接入一个 agent
 
-投递端只需要三个 HTTP 动作，不需要 SDK，五十行足够：
+投递端只需要三个 HTTP 动作，不需要 SDK：
 
 ```
 POST /v1/take   {"sink":"…","limit":50}   → {"ticket":"…","events":[…],"backlog":N}
@@ -346,7 +331,62 @@ if (events.length) {
 
 `token` 在 `~/.dsh/state/personal-context/token`。参考实现见 `packages/core/src/plugin/api-client.js`，契约测试见 `packages/core/test/api-client.test.js`。
 
-> 为什么不让投递端直接读数据库？因为读库意味着复制表结构与状态机，换一个 agent 就得抄一遍。三个动作覆盖同样的语义，见 [ADR 0006](docs/adr/0006-适配器只认三个动作.md)。
+> 为什么不让投递端直接读数据库？读库意味着复制表结构与状态机，换一个 agent 就得抄一遍，我们改一次 schema 所有适配器一起坏。三个动作覆盖同样的语义，见 [ADR 0006](docs/adr/0006-适配器只认三个动作.md)。
+
+---
+
+## 配置
+
+分两层：**开关和节奏在设置界面改，凭据只放环境变量**。
+
+### 设置界面
+
+对应文件 `~/.dsh/state/personal-context/config.json`。包含：投递间隔、单批条数与字数、积压阈值、每路来源的开关与轮询间隔、每路来源投给哪个会话。
+
+### 环境变量
+
+存在 `sources.env`（权限 0600，不进版本库）：
+
+| 变量 | 用途 |
+|---|---|
+| `PERSONAL_CONTEXT_TELEGRAM_API_ID` / `_API_HASH` / `_SESSION` | Telethon 凭据与会话文件路径 |
+| `PERSONAL_CONTEXT_TELEGRAM_PROXY` | 代理，如 `socks5://127.0.0.1:7897` |
+| `PERSONAL_CONTEXT_TELEGRAM_CHATS` | 只采这些会话，逗号分隔；留空表示全部 |
+| `PERSONAL_CONTEXT_FEISHU_LARK_CLI` | lark-cli 可执行文件路径（默认走 PATH） |
+| `PERSONAL_CONTEXT_STATE_DIR` | 状态目录，默认 `~/.dsh/state/personal-context` |
+| `PERSONAL_CONTEXT_HTTP_LISTEN` | 中枢监听地址，默认 `127.0.0.1:7788` |
+| `PERSONAL_CONTEXT_SOURCE_DIRS` | 额外扫描来源包的目录，冒号分隔 |
+
+每个来源自己的凭据（比如将来 IMAP 的账号密码）按同一约定加：`PERSONAL_CONTEXT_<来源名>_<字段>`。
+
+---
+
+## 命令
+
+```bash
+personal-context init      # 装/改凭据、装开机自启、起服务
+personal-context status    # 队列与来源状态
+personal-context sources   # 每路来源收了多少、丢了多少
+personal-context log -f    # 跟日志
+```
+
+没有全局安装时，用 `node packages/core/bin/personal-context.mjs <命令>`。
+
+---
+
+## 排错
+
+| 现象 | 原因与解法 |
+|---|---|
+| 设置里没有「个人上下文」 | 插件没装好，或前端模块加载失败。打开 DSH 的开发者工具看 Console |
+| 消息迟迟不出现，但来源显示运行中 | 目标会话没在 DSH 里打开过。打开它，积压会立刻投进去 |
+| `feishu 未运行` | 没装 `lark-cli` 或未登录：`lark-cli config init --as user` |
+| `telegram` 起不来 | 缺 `telethon`，或 session 文件路径不对 |
+| 新装的来源没被认出来 | 包没装在扫描目录里，或 `package.json` 少了 `dsh.source`。看日志里的「发现来源包」一行 |
+| 7788 端口被占用 | 改 `PERSONAL_CONTEXT_HTTP_LISTEN`，投递端同步改 |
+| 想彻底重来 | 停服务，删 `~/.dsh/state/personal-context/`（⚠️ 会丢队列里的消息） |
+
+日志：`personal-context log -f`，或 `journalctl --user -u personal-context-daemon -f`。
 
 ---
 
@@ -359,16 +399,17 @@ if (events.length) {
 
 ### 路线
 
-- [ ] 发布到 npm，支持按包名安装
+- [ ] 发布到 npm，支持按包名安装来源
 - [ ] 订阅型来源（webhook 接收端）的开箱实现
 - [ ] 更多来源：邮件（IMAP）、RSS、网页变更监控
+- [ ] 投递端：更多 agent 的参考实现
 - [ ] Windows 开机自启
 
 ---
 
 ## 参与
 
-欢迎加来源、改投递、修问题。有两条硬约定，破了整个架构就散了：
+欢迎加来源、加投递端、修问题。有两条硬约定，破了整个架构就散了：
 
 1. **来源进程不得依赖本项目或 agent 客户端** —— 只能读环境变量、往标准输出写信封。这条保证采集能在 agent 客户端之外独立运行。
 2. **队列只有一个写者** —— 投递端一律走 `take / done / retry`，不得直接访问数据库。
@@ -381,9 +422,9 @@ if (events.length) {
 
 ```
 packages/core/                中枢：队列、投递、设置面板、命令行
-packages/source-telegram/     Telegram 来源
-packages/source-feishu/       飞书来源
-cordis.patch.yml              壳包：把三个组件插进 DSH 的组合
+packages/source-telegram/     来源：Telegram
+packages/source-feishu/       来源：飞书
+cordis.patch.yml              壳包：把组件插进 DSH 的组合
 deploy/                       打包脚本、systemd 单元、重启脚本
 docs/                         设计说明、架构决策记录
 ```
