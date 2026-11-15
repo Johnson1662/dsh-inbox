@@ -1,6 +1,6 @@
 {
   "name": "dsh-personal-context",
-  "version": "0.4.0",
+  "version": "0.5.2",
   "private": true,
   "type": "module",
   "description": "个人上下文基础设施：来源 → 队列 → 某个 agent 的某个会话",

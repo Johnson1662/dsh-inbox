@@ -16,6 +16,7 @@ export function createDaemon(config, { log = () => {} } = {}) {
   const token = config.http.token ?? readOrCreateToken(stateDir, log)
   const queue = openQueue(join(stateDir, 'context.sqlite'), { routes: config.routes ?? [] })
   const credentials = createCredentialRules(config.credentials)
+  let current = config
   // 来源进程和 HTTP 入口走同一条管道：normalize 过、凭据规则过，才进队列
   const sources = createSupervisor({
     stateDir,
@@ -42,6 +43,9 @@ export function createDaemon(config, { log = () => {} } = {}) {
     }
     if (!authorized(req)) return send(res, 401, { error: 'unauthorized' })
 
+    if (req.method === 'GET' && url.pathname === '/v1/sinks') {
+      return send(res, 200, { sinks: queue.sinks() })
+    }
     if (req.method === 'GET' && url.pathname === '/v1/stats') {
       return send(res, 200, { ...queue.stats(), sources: sources.status() })
     }
@@ -106,6 +110,12 @@ export function createDaemon(config, { log = () => {} } = {}) {
     reloading = true
     try {
       const next = loadConfig(existsSync(watched) ? JSON.parse(readFileSync(watched, 'utf8')) : {})
+      current = next
+      try {
+        queue.setRoutes(next.routes)
+      } catch (error) {
+        log(`路由没换成功，继续用旧的：${error?.message ?? error}`)
+      }
       sources.reconcile(next)
       log(`配置已重新加载：${watched}`)
     } catch (error) {

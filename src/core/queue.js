@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS events_pending ON events(sink, state, at, seq);
  *  - 同一 sink 同时只有一个消费者（由调用方保证）
  */
 export function openQueue(path, { routes = [], now = () => new Date() } = {}) {
-  const resolve = createRouter(routes)
+  let resolve = createRouter(routes)
   const db = new DatabaseSync(path)
   db.exec(SCHEMA)
   migrate(db)
@@ -65,10 +65,23 @@ export function openQueue(path, { routes = [], now = () => new Date() } = {}) {
     "UPDATE events SET state='delivered', delivered_at=?, ticket=NULL, leased_until=NULL WHERE ticket=? AND state='pending' AND id=?",
   )
   const pendingCount = db.prepare("SELECT COUNT(*) AS n FROM events WHERE sink=? AND state='pending'")
+  const routeList = () => (typeof resolve.routes === 'function' ? resolve.routes() : [])
   const ticketIds = ticket => ticketIdsOf(db, ticket)
 
   return {
     path,
+
+    /** 设置里改了「哪个来源投给谁」：路由就地换掉，已入库的事件保持原样。 */
+    setRoutes(next) {
+      const router = createRouter(next ?? [])
+      resolve = router
+      return true
+    },
+
+    /** 当前所有被路由到的 sink（适配器按这些去取货）。 */
+    sinks() {
+      return [...new Set(routeList().map(route => route.sink))]
+    },
 
     ingest(envelope) {
       const sink = resolve(envelope.source)
@@ -208,10 +221,12 @@ function createRouter(routes) {
   if (!list.some(route => route.sources.includes('*'))) {
     throw new Error('routes 缺少兜底规则 {"sources":["*"],"sink":"..."}')
   }
-  return source => {
+  const resolve = source => {
     for (const route of list) {
       if (route.sources.includes('*') || route.sources.includes(source)) return route.sink
     }
     throw new Error(`没有任何路由匹配来源 ${source}`)
   }
+  resolve.routes = () => list
+  return resolve
 }

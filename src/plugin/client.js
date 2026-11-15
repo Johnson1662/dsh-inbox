@@ -32,6 +32,7 @@ MODULE_LOADER.load({
 [data-pc-hint]{font-size:11.5px;opacity:.62;}
 [data-pc-input]{width:120px;padding:5px 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.28));background:var(--dsw-alias-bg1,transparent);color:inherit;font:inherit;text-align:right;}
 [data-pc-input]:focus{outline:2px solid var(--dsw-alias-brand-primary,#3b82f6);outline-offset:1px;}
+[data-pc-select]{min-width:180px;padding:5px 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.28));background:var(--dsw-alias-bg1,transparent);color:inherit;font:inherit;}
 [data-pc-foot]{display:flex;align-items:center;gap:12px;}
 [data-pc-btn]{padding:6px 14px;border-radius:7px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.28));background:var(--dsw-alias-brand-primary,#3b82f6);color:#fff;font:inherit;font-weight:600;cursor:pointer;}
 [data-pc-btn][disabled]{opacity:.5;cursor:default;}
@@ -81,6 +82,16 @@ MODULE_LOADER.load({
         }))
     }
 
+    function SelectRow({ label, hint, value, options, onChange, disabled }) {
+      return h(Row, { label, hint },
+        h('select', {
+          'data-pc-select': '', value: value ?? '', disabled,
+          onChange: event => onChange(event.target.value),
+        },
+        h('option', { value: '' }, '（不投）'),
+        options.map(option => h('option', { key: option.id, value: option.id }, option.role ? `${option.name} · ${option.role}` : option.name))))
+    }
+
     function BooleanRow({ field, value, onChange, disabled }) {
       return h(Row, { label: field.label },
         h('input', {
@@ -92,13 +103,14 @@ MODULE_LOADER.load({
     function Panel() {
       const [data, setData] = React.useState(null)
       const [draft, setDraft] = React.useState(null)
+      const [targets, setTargets] = React.useState({})
       const [error, setError] = React.useState('')
       const [msg, setMsg] = React.useState('')
       const [busy, setBusy] = React.useState(false)
 
       const load = React.useCallback(() => {
         request('/config')
-          .then(next => { setData(next); setDraft(next.settings); setError('') })
+          .then(next => { setData(next); setDraft(next.settings); setTargets({ ...(next.targets?.current ?? {}) }); setError('') })
           .catch(err => setError(err.message))
       }, [])
       React.useEffect(load, [load])
@@ -111,9 +123,9 @@ MODULE_LOADER.load({
           const next = await request('/config', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ settings: draft }),
+            body: JSON.stringify({ settings: draft, targets }),
           })
-          setData(next); setDraft(next.settings)
+          setData(next); setDraft(next.settings); setTargets({ ...(next.targets?.current ?? {}) })
           setMsg('已保存，守护进程一个轮询周期内生效')
         } catch (err) {
           setError(err.message)
@@ -130,6 +142,8 @@ MODULE_LOADER.load({
       if (!data || !draft) return h('div', { 'data-pc': '' }, '正在读取设置…')
 
       const groups = [...new Set(data.fields.map(field => field.group))]
+      const sources = Object.keys(targets)
+      const available = data.targets?.available ?? []
       return h('div', { 'data-pc': '' },
         groups.map(group =>
           h('div', { 'data-pc-group': '', key: group },
@@ -138,6 +152,19 @@ MODULE_LOADER.load({
               field.type === 'boolean'
                 ? h(BooleanRow, { key: field.key, field, value: draft[field.key], onChange: change, disabled: busy })
                 : h(NumberRow, { key: field.key, field, value: draft[field.key], onChange: change, disabled: busy })))),
+        sources.length
+          ? h('div', { 'data-pc-group': '' },
+              h('div', { 'data-pc-group-title': '' }, '收件会话'),
+              sources.map(source => h(SelectRow, {
+                key: source,
+                label: `${source} 投给谁`,
+                hint: '选中的会话会被这条来源唤醒；该会话需要在 DSH 里打开过',
+                value: targets[source],
+                options: available,
+                disabled: busy,
+                onChange: value => setTargets(prev => ({ ...prev, [source]: value })),
+              })))
+          : null,
         h('div', { 'data-pc-foot': '' },
           h('button', { 'data-pc-btn': '', onClick: save, disabled: busy }, busy ? '保存中…' : '保存'),
           h('button', { 'data-pc-btn': 'ghost', onClick: load, disabled: busy }, '重新读取'),

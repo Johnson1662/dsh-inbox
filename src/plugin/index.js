@@ -14,6 +14,19 @@ export const inject = ['agents', 'sessionPersistence', 'webServer']
  * 组合根。设置界面里的字段（见 config-schema.js）在这里摊成配置层，
  * 并回写到与守护进程共用的那一份文件——界面改一次，两边都跟着变。
  */
+/** bot state 很热（每个 sink 每轮都查），但也没必要每 500ms 读一次盘。 */
+let botsCache = { at: 0, value: {} }
+function botState() {
+  if (Date.now() - botsCache.at < 5000) return botsCache.value
+  try {
+    const raw = JSON.parse(readFileSync(expandHome('~/.dsh/bot/state.json'), 'utf8'))
+    botsCache = { at: Date.now(), value: raw }
+    return raw
+  } catch {
+    return botsCache.value
+  }
+}
+
 export function apply(ctx, pluginConfig = {}) {
   if (pluginConfig.enabled === false) return
 
@@ -57,21 +70,21 @@ export function apply(ctx, pluginConfig = {}) {
   const api = createApiClient({ baseUrl: daemonUrl, token: readToken(stateDir, log) })
   const sinks = pluginConfig.sinks ?? {}
 
-  const resolveAgent = sinkName => {
-    const sink = sinks[sinkName]
-    if (!sink) return undefined
-    let id = sink.sessionId
-    if (sink.botId) {
-      try {
-        const state = JSON.parse(readFileSync(expandHome(sink.botStatePath ?? '~/.dsh/bot/state.json'), 'utf8'))
-        id = state.bots?.[sink.botId]?.sessionId ?? id
-      } catch (error) {
-        log(`读取 bot state 失败: ${error.message}`)
-      }
+  /**
+   * sink 就是 bot 的 key（bot state 里那个 `session-<uuid>`）。
+   * 老配置里可能还写着 `chief` 这种别名，退回插件配置里的 sinks 映射。
+   */
+  const resolveAgent = sinkId => {
+    const key = String(sinkId)
+    let id = botState().bots?.[key]?.sessionId
+    if (!id) {
+      const alias = sinks[key]
+      id = alias?.sessionId ?? (alias?.botId ? botState().bots?.[alias.botId]?.sessionId : undefined)
     }
+    if (!id && /^session-/.test(key)) id = key
     if (!id) return undefined
-    id = String(id)
-    return ctx.agents.get(id) ?? ctx.agents.get(`session-${id.replace(/^session-/, '')}`) ?? ctx.agents.get(id.replace(/^session-/, ''))
+    const text = String(id)
+    return ctx.agents.get(text) ?? ctx.agents.get(`session-${text.replace(/^session-/, '')}`) ?? ctx.agents.get(text.replace(/^session-/, ''))
   }
 
   const deliver = async (agent, batch) => {
@@ -94,7 +107,7 @@ export function apply(ctx, pluginConfig = {}) {
 
   const loop = createDeliveryLoop({
     consumer: api,
-    sink: config.delivery.sink,
+    sinks: () => api.sinks(),
     resolveAgent,
     deliver,
     limits: {
@@ -136,7 +149,7 @@ export function apply(ctx, pluginConfig = {}) {
     log('宿主没有 webServer，设置面板的接口没挂上（投递照常）')
   }
 
-  log(`started sink=${config.delivery.sink} interval=${settings.intervalMs}ms daemon=${daemonUrl}`)
+  log(`started interval=${settings.intervalMs}ms daemon=${daemonUrl}（收件会话由 routes 决定）`)
   ctx.effect(() => () => loop.stop())
 }
 

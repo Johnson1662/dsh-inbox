@@ -46,6 +46,8 @@ export function createApiClient({ baseUrl, token, timeoutMs = 10_000 } = {}) {
 
   return {
     take: (limit, extra = {}) => call('/v1/take', { limit, ...extra }),
+    /** 当前有哪几个 sink 需要投（来源 → 会话的路由决定）。 */
+    sinks: async () => (await get('/v1/sinks'))?.sinks ?? [],
     /** 待投条数：只在第一轮用来决定要不要放大上限，之后靠 take 的返回值。 */
     backlog: async sink => {
       const stats = await get('/v1/stats')
