@@ -1,10 +1,7 @@
-# dsh-personal-context bundle layer.
-#
-# 把队列里的待投事件渲染成一条消息，投进指定会话，唤醒那个 agent。
-# 队列由常驻的 daemon 写入；插件只做投递，不判断内容。
+# 核心组件的默认配置。壳包 dsh-personal-context 会把它插进组合里。
 - insert:
-    - id: dsh-personal-context
-      name: dsh-personal-context
+    - id: dsh-personal-context-core
+      name: dsh-personal-context-core
       config:
         enabled: true
         stateDir: ~/.dsh/state/personal-context
@@ -14,17 +11,15 @@
         batchChars: 4000
         backlogCount: 200
         backlogChars: 20000
-        # 来源开关与节奏：设置界面里就是这几项，值必须与 daemon 的 config.json 一致
         telegramEnabled: true
         telegramIntervalMs: 8000
         feishuEnabled: true
         feishuIntervalMs: 5000
         routes:
           - sources: ["*"]
-            sink: chief
+            sink: session-bcba45c8-199d-4f99-8774-bf2b91091466
         sinks:
           chief:
             kind: dsh-session
-            # DSH 的 bot state 以 `session-<uuid>` 为键；sessionId 是兜底写法。
             botId: session-bcba45c8-199d-4f99-8774-bf2b91091466
             sessionId: session-b4d09876-a9a1-47dc-8c3f-9f4633282ada

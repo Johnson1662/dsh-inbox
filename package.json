@@ -1,43 +1,24 @@
 {
   "name": "dsh-personal-context",
-  "version": "0.6.2",
+  "version": "0.7.1",
   "private": true,
   "type": "module",
-  "description": "个人上下文基础设施：来源 → 队列 → 某个 agent 的某个会话",
-  "main": "src/plugin/index.js",
-  "exports": {
-    ".": "./src/plugin/index.js",
-    "./client": "./src/plugin/client.js",
-    "./package.json": "./package.json"
-  },
+  "description": "个人上下文：各来源的消息收进来，投进指定的 agent 会话",
   "files": [
-    "src",
-    "bin",
-    "deploy",
-    "scripts",
-    "README.md"
+    "cordis.patch.yml"
   ],
   "dsh": {
     "bundle": {
-      "patch": "./src/plugin/cordis.patch.yml"
-    },
-    "client": {
-      "platform": "web",
-      "inject": [
-        "@deepseek-ai/dsh-client-runtime",
-        "@deepseek-ai/dsh-client-ui-settings"
-      ]
+      "patch": "./cordis.patch.yml"
     }
   },
+  "dependencies": {
+    "dsh-personal-context-core": "file:./packages/core",
+    "dsh-personal-context-source-telegram": "file:./packages/source-telegram",
+    "dsh-personal-context-source-feishu": "file:./packages/source-feishu"
+  },
   "scripts": {
-    "test": "node --test",
-    "daemon": "node src/daemon/index.js"
-  },
-  "peerDependencies": {
-    "@deepseek-ai/dsh-agent": "*",
-    "@deepseek-ai/dsh-llm": "*"
-  },
-  "bin": {
-    "personal-context": "./bin/personal-context.mjs"
+    "test": "node --test 'packages/core/test/**/*.test.js' 'packages/source-feishu/test/**/*.test.js'",
+    "daemon": "node packages/core/src/daemon/index.js"
   }
 }

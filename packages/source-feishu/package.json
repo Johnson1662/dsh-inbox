@@ -1,0 +1,47 @@
+{
+  "name": "dsh-personal-context-source-feishu",
+  "version": "0.7.1",
+  "private": true,
+  "type": "module",
+  "description": "飞书来源：用 lark-cli 以本人身份轮询会话，把新消息写成信封",
+  "main": "./index.js",
+  "files": [
+    "worker.js",
+    "index.js",
+    "package.json"
+  ],
+  "dsh": {
+    "source": {
+      "name": "feishu",
+      "label": "飞书",
+      "runtime": "node",
+      "entry": "worker.js",
+      "fields": [
+        {
+          "key": "enabled",
+          "label": "采集飞书",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "intervalMs",
+          "label": "轮询间隔（毫秒）",
+          "type": "number",
+          "min": 1000,
+          "max": 300000,
+          "step": 500,
+          "default": 5000
+        },
+        {
+          "key": "concurrency",
+          "label": "一轮并发几个会话",
+          "type": "number",
+          "min": 1,
+          "max": 32,
+          "step": 1,
+          "default": 8
+        }
+      ]
+    }
+  }
+}

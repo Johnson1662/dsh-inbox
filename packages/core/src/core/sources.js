@@ -9,11 +9,14 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-export const DEFAULT_SOURCE_DIRS = [
-  join(homedir(), '.dsh', 'profiles', 'desktop', 'node_modules'),
-]
+// 两处：装进 profile 的来源包，以及源码树里并排的 packages/（开发时）
+const PROFILE_MODULES = join(homedir(), '.dsh', 'profiles', 'desktop', 'node_modules')
+const SIBLING_PACKAGES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+
+export const DEFAULT_SOURCE_DIRS = [PROFILE_MODULES, SIBLING_PACKAGES]
 
 /** 扫若干目录，收集所有带 dsh.source 声明的包。重复名字以先出现的为准。 */
 export function loadSourceManifests({ dirs = DEFAULT_SOURCE_DIRS } = {}) {
