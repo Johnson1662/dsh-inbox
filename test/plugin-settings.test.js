@@ -42,3 +42,26 @@ test('每个设置项都有范围且默认值在范围内', () => {
     assert.ok(value >= field.min && value <= field.max, `${field.key} 默认值越界`)
   }
 })
+
+
+test('每个来源一张卡：开关、节奏、投给谁都在同一组，且 source 键能对上 config.sources', async () => {
+  const { buildGroups } = await import('../src/plugin/route.js')
+  const bots = [{ id: 'session-a', name: 'Chief', role: '' }, { id: 'session-b', name: 'QA', role: '验收' }]
+  const groups = buildGroups(bots, { telegram: 'session-a', feishu: 'session-b' }, DEFAULTS)
+
+  const titles = groups.map(group => group.title)
+  assert.deepEqual(titles, ['Telegram', '飞书', '投递'])
+
+  const feishu = groups.find(group => group.title === '飞书')
+  const target = feishu.items.find(item => item.kind === 'target')
+  assert.equal(target.key, 'target:feishu', '中文标题不能靠 toLowerCase 猜出来')
+  assert.equal(target.value, 'session-b', '回填当前选中的会话')
+  assert.equal(target.options.length, 2)
+
+  const telegram = groups.find(group => group.title === 'Telegram')
+  assert.deepEqual(telegram.items.map(item => item.kind), ['boolean', 'number', 'target'], '开关在最前，投给谁在最后')
+
+  const delivery = groups.find(group => group.title === '投递')
+  assert.ok(delivery.items.every(item => item.kind === 'number'))
+  assert.ok(groups.every(group => group.note), '每张卡都有一句说明')
+})

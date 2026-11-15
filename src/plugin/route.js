@@ -6,7 +6,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { configPath, loadConfig, persistConfig } from '../core/config.js'
-import { FIELDS, toLayered, toSettings, validate } from './settings.js'
+import { DEFAULTS as DEFAULT_SETTINGS, FIELDS, toLayered, toSettings, validate } from './settings.js'
 import { listBots, routesFromTargets, targetOfSource } from './targets.js'
 
 const MAX_BODY = 64 * 1024
@@ -71,10 +71,62 @@ export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}
       settings: settings ?? toSettings(loadConfig(file)),
       fields: FIELDS,
       targets: { available: bots.map(bot => ({ id: bot.id, name: bot.name, role: bot.role })), current },
+      groups: buildGroups(bots, current, settings ?? toSettings(loadConfig(file))),
       path,
       note: '改完保存即可，守护进程一个轮询周期内生效；来源开关会重启对应来源进程，水位不丢。',
     }
   }
+}
+
+/**
+ * 面板的结构由这里决定，客户端只负责画。
+ *
+ * 一个来源一张卡：开关、节奏、投给谁全在同一张卡里——
+ * 之前开关在「飞书」、投给谁在底下「收件会话」，读的人得自己拼起来。
+ */
+export function buildGroups(bots, current, settings) {
+  const groups = []
+  const items = group => FIELDS.filter(field => field.group === group).map(field => ({
+    kind: field.type,
+    key: field.key,
+    label: field.label,
+    hint: field.type === 'number' ? `${field.min} – ${field.max}` : '',
+    min: field.min,
+    max: field.max,
+    step: field.step,
+    default: DEFAULT_SETTINGS[field.key],
+  }))
+
+  for (const field of FIELDS) {
+    if (!field.source) continue
+    if (groups.some(group => group.id === `source:${field.source}`)) continue
+    const source = field.source
+    groups.push({
+      id: `source:${source}`,
+      title: field.group,
+      note: '关掉就停止采集；采到的消息投进下面选的会话。',
+      items: [
+        ...items(field.group),
+        {
+          kind: 'target',
+          key: `target:${source}`,
+          label: '投给哪个会话',
+          hint: '需要在 DSH 里打开过该会话',
+          value: current[source] ?? '',
+          options: bots.map(bot => ({ value: bot.id, label: bot.role ? `${bot.name} · ${bot.role}` : bot.name })),
+        },
+      ],
+    })
+  }
+
+  groups.push({
+    id: 'delivery',
+    title: '投递',
+    note: '只影响怎么打包投递，不影响采集。积压多时会自动放大上限，少唤醒几次。',
+    items: items('投递'),
+  })
+
+  return groups
 }
 
 /**

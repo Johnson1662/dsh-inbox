@@ -13,11 +13,12 @@ export const FIELDS = [
   { key: 'backlogCount', group: '投递', label: '积压多少条后放大上限', type: 'number', min: 1, max: 10000, step: 1 },
   { key: 'backlogChars', group: '投递', label: '放大后的字数上限', type: 'number', min: 200, max: 400000, step: 100 },
 
-  { key: 'telegramEnabled', group: 'Telegram', label: '采集 Telegram', type: 'boolean' },
-  { key: 'telegramIntervalMs', group: 'Telegram', label: '轮询间隔（毫秒）', type: 'number', min: 1000, max: 300000, step: 500 },
+  // source 是 config.sources 里的键，group 只是给人看的标题——两者不能靠大小写猜
+  { key: 'telegramEnabled', source: 'telegram', group: 'Telegram', label: '采集 Telegram', type: 'boolean' },
+  { key: 'telegramIntervalMs', source: 'telegram', group: 'Telegram', label: '轮询间隔（毫秒）', type: 'number', min: 1000, max: 300000, step: 500 },
 
-  { key: 'feishuEnabled', group: '飞书', label: '采集飞书', type: 'boolean' },
-  { key: 'feishuIntervalMs', group: '飞书', label: '轮询间隔（毫秒）', type: 'number', min: 1000, max: 300000, step: 500 },
+  { key: 'feishuEnabled', source: 'feishu', group: '飞书', label: '采集飞书', type: 'boolean' },
+  { key: 'feishuIntervalMs', source: 'feishu', group: '飞书', label: '轮询间隔（毫秒）', type: 'number', min: 1000, max: 300000, step: 500 },
 ]
 
 export const DEFAULTS = Object.freeze({
