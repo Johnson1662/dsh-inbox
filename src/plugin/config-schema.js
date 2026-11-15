@@ -1,7 +1,10 @@
 import z from "@deepseek-ai/schemastery"
 
 /**
- * 设置界面里能改的字段。凡带 .volatile() 的，DSH 会渲染成表单控件。
+ * 插件行配置的 schema，只给宿主校验 cordis.patch.yml 里那一段用。
+ *
+ * **它不生成界面**——DSH 没有 schema→表单的机制（那是 Koishi），
+ * 真正的设置面板在 client.js 里手写。别再把这里当成 UI 的来源。
  *
  * 只放"安全"的配置：凭据（telegram apiHash、http token）一律走环境变量，
  * 不进这个文件，也不进设置界面。

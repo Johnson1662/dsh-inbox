@@ -1,5 +1,5 @@
 import { createServer } from 'node:http'
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, unwatchFile, watchFile, writeFileSync } from 'node:fs'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { join } from 'node:path'
 import { configPath, expandHome, loadConfig } from '../core/config.js'
@@ -70,6 +70,23 @@ export function createDaemon(config, { log = () => {} } = {}) {
     return a.length === b.length && timingSafeEqual(a, b)
   }
 
+  // 设置页改完写的就是这个文件：看着它，改了就地生效，不用重启守护进程
+  let reloading = false
+  const watched = configPath(config)
+  watchFile(watched, { interval: 2000 }, (curr, prev) => {
+    if (curr.mtimeMs === prev.mtimeMs || reloading) return
+    reloading = true
+    try {
+      const next = loadConfig(existsSync(watched) ? JSON.parse(readFileSync(watched, 'utf8')) : {})
+      sources.reconcile(next)
+      log(`配置已重新加载：${watched}`)
+    } catch (error) {
+      log(`配置重新加载失败，继续用旧的：${error?.message ?? error}`)
+    } finally {
+      reloading = false
+    }
+  })
+
   return {
     queue,
     token,
@@ -87,6 +104,7 @@ export function createDaemon(config, { log = () => {} } = {}) {
       })
     },
     async close() {
+      try { unwatchFile(watched) } catch {}
       // 先收来源子进程（SIGTERM → 5s → SIGKILL），再关队列：反过来的话它们还在写库
       await sources.stopAll()
       return new Promise(resolve => {

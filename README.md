@@ -174,9 +174,16 @@ agent 侧（插件，很薄）
 
 ### 设置界面
 
-插件声明了 `.volatile()` 字段，DSH 的「设置」里会自动出现表单，不用写 UI。能改：投递间隔、单批条数与字数、积压放大阈值、每路来源的开关与轮询间隔、目标 sink。
+DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为）。要界面，插件得自己带浏览器半端：
 
-改完之后插件会把值回写到 `~/.dsh/state/personal-context/config.json`——**和守护进程读的是同一份文件**，所以界面改一次，两边都跟着变。
+- `package.json` 声明 `dsh.client = { platform: 'web' }` 与 `exports["./client"]`
+- `src/plugin/client.js` 在 `settings.section` 槽里注册一个 React 面板
+- 面板读写 `src/plugin/route.js` 挂在宿主 web 上的 `/personal-context/config`（**不能放 `/api/` 前缀下**，那是 Remote RPC 网关的地盘，POST 会被掐断）
+
+面板里的九项：投递间隔、单批条数字数、积压阈值、Telegram/飞书 的开关与轮询间隔。保存即写 `config.json`：
+
+- 投递参数由插件**就地热更新**，下一批就按新值走
+- 来源开关由守护进程**看着 `config.json`** 增删子进程（`来源变更：feishu: 关`），水位在文件里，重启不重投
 
 ### 环境变量（凭据只走这里）
 
@@ -190,9 +197,9 @@ agent 侧（插件，很薄）
 | `PC_DELIVERY_INTERVAL_MS` | 投递循环间隔 | `500` |
 | `PC_BATCH_COUNT` / `PC_BATCH_CHARS` | 单批上限 | `50` / `4000` |
 | `PC_BACKLOG_COUNT` / `PC_BACKLOG_CHARS` | 积压放大时的上限 | `200` / `20000` |
-| `PC_TELEGRAM_ENABLED` / `PC_TELEGRAM_INTERVAL_MS` | TG 开关与节奏 | `false` / `8000` |
+| `PC_TELEGRAM_INTERVAL_MS` | TG 轮询间隔（默认值，设置界面可改） | `8000` |
 | `PC_TELEGRAM_API_ID` / `PC_TELEGRAM_API_HASH` / `PC_TELEGRAM_SESSION` | TG 凭据与会话文件 | 无（启用即必填） |
-| `PC_FEISHU_ENABLED` / `PC_FEISHU_INTERVAL_MS` | 飞书开关与节奏 | `false` / `5000` |
+| `PC_FEISHU_INTERVAL_MS` | 飞书轮询间隔（默认值，设置界面可改） | `5000` |
 | `PC_TELEGRAM_PROXY` | TG 走的代理（`socks5://host:port`） | 无 |
 | `PC_TELEGRAM_CHATS` | 只采这些会话，逗号分隔；空=全部 | 空 |
 | `PC_TELEGRAM_BACKFILL` | 首次见到一个会话时回填最近几条；`0` = 只从当前最新开始，不回溯历史 | `0` |
@@ -200,6 +207,8 @@ agent 侧（插件，很薄）
 | `PC_CREDENTIAL_CHATS` / `PC_CREDENTIAL_PATTERNS` | 凭据类判定规则 | `777000` / 验证码词表 |
 
 启用了某路来源却缺凭据时，**启动直接报错并点名缺什么**，不会静默关掉。
+
+**来源的开与关不在环境变量里**，在设置界面（写 `config.json`）。环境变量只放凭据与默认节奏——因为环境变量优先级最高，一旦把开关写进 `sources.env`，界面上的开关就再也关不掉了（实测踩过）。
 
 ### 来源进程拿到什么
 

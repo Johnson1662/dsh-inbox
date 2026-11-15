@@ -137,6 +137,45 @@ export function createSupervisor({
     return rec
   }
 
+  /**
+   * 配置变了：该开的开、该关的关、间隔变了的重启。
+   * 水位在文件里，重启子进程不会重投。
+   */
+  function reconcile(config = {}) {
+    const wanted = config?.sources ?? {}
+    const changes = []
+
+    for (const name of [...records.keys()]) {
+      const want = wanted[name]
+      if (!want?.enabled) {
+        if (records.get(name)?.child || records.get(name)?.timer) {
+          stop(name)
+          changes.push(`${name}: 关`)
+        } else {
+          records.delete(name)
+        }
+      }
+    }
+
+    for (const [name, sourceConfig] of Object.entries(wanted)) {
+      if (!sourceConfig?.enabled) continue
+      const rec = records.get(name)
+      if (!rec?.child) {
+        if (start(name, sourceConfig)) changes.push(`${name}: 开`)
+        continue
+      }
+      // 间隔/凭据变了才重启，避免无谓抖动
+      const changed = JSON.stringify(rec.config ?? {}) !== JSON.stringify(sourceConfig ?? {})
+      if (!changed) continue
+      stop(name)
+      records.delete(name)
+      if (start(name, sourceConfig)) changes.push(`${name}: 重启`)
+    }
+
+    if (changes.length) log(`来源变更：${changes.join('、')}`)
+    return changes
+  }
+
   /** 只拉 enabled 的来源；配置里有但没实现的，WARN 一行，不崩。 */
   function startEnabled(config = {}) {
     const started = []
@@ -325,7 +364,7 @@ export function createSupervisor({
     }))
   }
 
-  return { start, startEnabled, stop, stopAll, status }
+  return { start, startEnabled, stop, stopAll, status, reconcile }
 }
 
 /** 逐行切 stdout：自己攒缓冲，不依赖 readline（来源可能一次吐出巨大的正文）。 */

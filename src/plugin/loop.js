@@ -31,7 +31,8 @@ export function createDeliveryLoop({
   let running = false
   let failures = 0
   let retryAt = 0
-  const batchLimits = toLimits(limits)
+  let batchLimits = toLimits(limits)
+  let period = intervalMs
 
   async function drain() {
     if (running || now() < retryAt) return
@@ -68,8 +69,19 @@ export function createDeliveryLoop({
     }
   }
 
-  const timer = setInterval(() => { drain().catch(error => log(`drain error: ${error?.stack ?? error}`)) }, intervalMs)
-  return { drain, stop: () => clearInterval(timer) }
+  let timer = setInterval(() => { drain().catch(error => log(`drain error: ${error?.stack ?? error}`)) }, period)
+
+  /** 设置页改完就地生效：上限立刻换，间隔变了重挂定时器。 */
+  function update(next = {}) {
+    if (next.limits !== undefined) batchLimits = toLimits(next.limits)
+    if (next.intervalMs !== undefined && next.intervalMs !== period) {
+      period = next.intervalMs
+      clearInterval(timer)
+      timer = setInterval(() => { drain().catch(error => log(`drain error: ${error?.stack ?? error}`)) }, period)
+    }
+  }
+
+  return { drain, update, stop: () => clearInterval(timer) }
 }
 
 /**

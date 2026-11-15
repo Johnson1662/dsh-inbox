@@ -184,3 +184,25 @@ test('批次上限取自 config.limits 的命名（batchCount / batchChars）', 
   loop.stop()
   done()
 })
+
+
+test('热更新：间隔与上限改了，下一批按新值走', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pc-loop-update-'))
+  const queue = openQueue(join(dir, 'q.sqlite'), { routes: [{ sources: ['*'], sink: 'chief' }] })
+  for (let i = 0; i < 5; i += 1) {
+    queue.ingest({ id: `e${i}`, source: 'manual', at: `2026-11-14T19:4${i}:00+08:00`, actor: 'other', text: `第${i}条`, meta: {} })
+  }
+  const delivered = []
+  const loop = createDeliveryLoop({
+    queue, sink: 'chief', intervalMs: 10, limits: { count: 50, chars: 4000 },
+    resolveAgent: () => ({ id: 'a' }),
+    deliver: async (agent, batch) => { delivered.push(batch) },
+  })
+  loop.update({ intervalMs: 10, limits: { count: 2, chars: 4000 } })
+  for (let i = 0; i < 60 && queue.stats().pending > 0; i += 1) await new Promise(r => setTimeout(r, 10))
+  loop.stop()
+  assert.equal(delivered.length, 3, '5 条按新上限 2 条一批 → 2+2+1 三批')
+  assert.equal(queue.stats().delivered, 5)
+  queue.close()
+  rmSync(dir, { recursive: true, force: true })
+})
