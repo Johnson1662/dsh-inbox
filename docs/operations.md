@@ -102,8 +102,8 @@ $ personal-context status
 
 ```
 packages/core/                中枢：队列、投递、设置面板、命令行
-packages/source-telegram/     来源：Telegram
-packages/source-feishu/       来源：飞书
+packages/sources/telegram/    来源：Telegram
+packages/sources/feishu/      来源：飞书
 cordis.patch.yml              接收端：DSH 的组合补丁
 deploy/                       打包脚本、systemd 单元、重启脚本
 docs/                         设计说明、架构决策记录

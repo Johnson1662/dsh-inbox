@@ -19,7 +19,7 @@ pack_one() {
 }
 
 echo "打包组件："
-for dir in packages/core packages/source-telegram packages/source-feishu; do
+for dir in packages/core packages/sources/telegram packages/sources/feishu; do
   pack_one "$root/$dir"
 done
 

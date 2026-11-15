@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { normalize } from '../../core/src/core/envelope.js'
+import { normalize } from '../../../core/src/core/envelope.js'
 import {
   backoffMs,
   createPoller,

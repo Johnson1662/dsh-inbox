@@ -157,8 +157,9 @@ if (events.length) {
 │   ├── src/daemon/               常驻进程：收事件、看护来源子进程、跑投递
 │   ├── src/cli/                  init / status / sources / log
 │   └── src/plugin/               接收端：take / done / retry 的第一个实现（DSH）
-├── packages/source-telegram/     来源：Telegram（Python + Telethon）
-├── packages/source-feishu/       来源：飞书（lark-cli，以你本人身份读）
+├── packages/sources/             来源，一路一个包
+│   ├── telegram/                 Telegram（Python + Telethon）
+│   └── feishu/                   飞书（lark-cli，以你本人身份读）
 ├── cordis.patch.yml              接收端：DSH 的组合补丁（装三个组件）
 ├── deploy/                       打包、systemd 单元、重启脚本
 └── docs/                         设计说明、ADR、运维手册

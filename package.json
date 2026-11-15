@@ -15,11 +15,11 @@
   },
   "dependencies": {
     "dsh-personal-context-core": "file:./packages/core",
-    "dsh-personal-context-source-telegram": "file:./packages/source-telegram",
-    "dsh-personal-context-source-feishu": "file:./packages/source-feishu"
+    "dsh-personal-context-source-telegram": "file:./packages/sources/telegram",
+    "dsh-personal-context-source-feishu": "file:./packages/sources/feishu"
   },
   "scripts": {
-    "test": "node --test 'packages/core/test/**/*.test.js' 'packages/source-feishu/test/**/*.test.js'",
+    "test": "node --test 'packages/core/test/**/*.test.js' 'packages/sources/feishu/test/**/*.test.js'",
     "daemon": "node packages/core/src/daemon/index.js"
   },
   "license": "MIT"

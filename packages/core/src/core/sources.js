@@ -40,23 +40,36 @@ export function loadSourceManifests({ dirs = DEFAULT_SOURCE_DIRS } = {}) {
         candidates.push(join(dir, name))
       }
     }
-    for (const pkgDir of candidates) collect(pkgDir, found)
+    for (const pkgDir of candidates) {
+      if (collect(pkgDir, found)) continue
+      // 分组目录（packages/sources/telegram 这类）：往里再看一层
+      let nested = []
+      try {
+        nested = readdirSync(pkgDir)
+      } catch {
+        continue
+      }
+      for (const inner of nested) {
+        if (inner.startsWith('.')) continue
+        collect(join(pkgDir, inner), found)
+      }
+    }
   }
   return [...found.values()]
 }
 
 function collect(pkgDir, found) {
   const manifestPath = join(pkgDir, 'package.json')
-  if (!existsSync(manifestPath)) return
+  if (!existsSync(manifestPath)) return false
   let pkg
   try {
     pkg = JSON.parse(readFileSync(manifestPath, 'utf8'))
   } catch {
-    return
+    return true
   }
   const source = pkg?.dsh?.source
-  if (!source?.name) return
-  if (found.has(source.name)) return
+  if (!source?.name) return true
+  if (found.has(source.name)) return true
   const entry = join(pkgDir, source.entry ?? '')
   found.set(source.name, {
     name: String(source.name),
@@ -69,6 +82,7 @@ function collect(pkgDir, found) {
     fields: Array.isArray(source.fields) ? source.fields : [],
     present: existsSync(entry),
   })
+  return true
 }
 
 /** 声明 → 怎么起进程。runtime 只有两种，别的直接报错，不猜。 */
