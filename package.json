@@ -12,7 +12,9 @@
   },
   "files": [
     "src",
-    "sources",
+    "bin",
+    "deploy",
+    "scripts",
     "README.md"
   ],
   "dsh": {
@@ -34,5 +36,8 @@
   "peerDependencies": {
     "@deepseek-ai/dsh-agent": "*",
     "@deepseek-ai/dsh-llm": "*"
+  },
+  "bin": {
+    "pc": "./bin/pc.mjs"
   }
 }
