@@ -104,6 +104,42 @@ agent 侧（插件，很薄）
 
 ---
 
+## 接自己的 agent：三个动作
+
+队列只有一个写者（守护进程）。适配器不碰数据库，只做三件事——**这是给别人的唯一契约**：
+
+```
+POST /v1/take   {"sink":"chief","limit":50}   → {"ticket":"t:…","events":[…],"backlog":N,"expiresAt":"…"}
+POST /v1/done   {"ticket":"t:…","ids":[…]}    → {"delivered":n,"released":m}
+POST /v1/retry  {"ticket":"t:…","reason":"…"} → {"released":n}
+```
+
+- **小票**：`take` 拿到的这批被划走，别人取不到；`done` 只把点名的标已投，没点名的自动放回。
+- **租约**：默认 5 分钟没回话，守护进程自己收回——适配器崩了也不会把消息锁死。
+- **鉴权**：`Authorization: Bearer <token>`，token 在 `~/.dsh/state/personal-context/token`（0600）。
+
+五十行的最小适配器长这样：
+
+```js
+const call = (path, body) => fetch(`http://127.0.0.1:7788${path}`, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+  body: JSON.stringify(body),
+}).then(r => r.json())
+
+const { ticket, events } = await call('/v1/take', { sink: 'chief', limit: 50 })
+if (events.length) {
+  try {
+    await myAgent.send(render(events))          // ← 这里换成你的 agent
+    await call('/v1/done', { ticket, ids: events.map(e => e.id) })
+  } catch (e) {
+    await call('/v1/retry', { ticket, reason: String(e) })
+  }
+}
+```
+
+DSH 插件就是按这个写法实现的（`src/plugin/api-client.js`），它是**第一个第三方适配器**，没有任何特权。
+
 ## 投递：每 500ms 一批，批内不丢
 
 投递循环每 500ms 取一次待投事件。**如果这 500ms 里攒了多条，它们被打包成一条消息**投进会话——但**批内每条事件都完整保留**，一行一条，不做摘要、不改写、不合并内容。

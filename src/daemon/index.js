@@ -43,8 +43,36 @@ export function createDaemon(config, { log = () => {} } = {}) {
     if (!authorized(req)) return send(res, 401, { error: 'unauthorized' })
 
     if (req.method === 'GET' && url.pathname === '/v1/stats') {
-      return send(res, 200, queue.stats())
+      return send(res, 200, { ...queue.stats(), sources: sources.status() })
     }
+    // ---- 取货 / 回话：适配器只认这三个端点，不碰数据库 ----
+    if (req.method === 'POST' && url.pathname === '/v1/take') {
+      const body = await json(req)
+      if (body.error) return send(res, 400, { error: body.error })
+      const sink = body.value?.sink ?? 'chief'
+      const limit = clampInt(body.value?.limit, 1, 1000, 50)
+      const leaseMs = clampInt(body.value?.leaseMs, 1000, 3_600_000, config.delivery.leaseMs ?? 300_000)
+      return send(res, 200, queue.takeBatch(sink, limit, { leaseMs }))
+    }
+    if (req.method === 'POST' && url.pathname === '/v1/done') {
+      const body = await json(req)
+      if (body.error) return send(res, 400, { error: body.error })
+      const { ticket, ids } = body.value ?? {}
+      if (!ticket) return send(res, 400, { error: 'missing_ticket' })
+      const result = queue.done(ticket, Array.isArray(ids) ? ids.map(String) : [])
+      log(`done ${ticket} delivered=${result.delivered} released=${result.released}`)
+      return send(res, 200, result)
+    }
+    if (req.method === 'POST' && url.pathname === '/v1/retry') {
+      const body = await json(req)
+      if (body.error) return send(res, 400, { error: body.error })
+      const { ticket, reason } = body.value ?? {}
+      if (!ticket) return send(res, 400, { error: 'missing_ticket' })
+      const result = queue.retry(ticket, reason ?? '')
+      log(`retry ${ticket} released=${result.released} why=${String(reason ?? '').slice(0, 120)}`)
+      return send(res, 200, result)
+    }
+
     if (req.method === 'POST' && url.pathname === '/v1/event') {
       const raw = await readBody(req)
       let parsed
@@ -122,6 +150,20 @@ export function createDaemon(config, { log = () => {} } = {}) {
       })
     },
   }
+}
+
+async function json(req) {
+  try {
+    return { value: JSON.parse((await readBody(req)) || '{}') }
+  } catch {
+    return { error: 'invalid_json' }
+  }
+}
+
+function clampInt(value, min, max, fallback) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(max, Math.max(min, Math.trunc(n)))
 }
 
 function readBody(req) {

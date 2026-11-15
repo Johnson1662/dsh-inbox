@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { configPath, expandHome, loadConfig, persistConfig } from '../core/config.js'
-import { openQueue } from '../core/queue.js'
+import { createApiClient } from './api-client.js'
 import { createDeliveryLoop } from './loop.js'
 import { createSettingsRoute } from './route.js'
 import { toLayered, toSettings } from './settings.js'
@@ -52,7 +52,9 @@ export function apply(ctx, pluginConfig = {}) {
     }
   }
 
-  const queue = openQueue(join(stateDir, 'context.sqlite'), { routes: config.routes })
+  // 插件不是数据库的写者：它只是"第一个第三方适配器"，只认 take / done / retry
+  const daemonUrl = `http://${config.http.listen}`
+  const api = createApiClient({ baseUrl: daemonUrl, token: readToken(stateDir, log) })
   const sinks = pluginConfig.sinks ?? {}
 
   const resolveAgent = sinkName => {
@@ -91,7 +93,7 @@ export function apply(ctx, pluginConfig = {}) {
   }
 
   const loop = createDeliveryLoop({
-    queue,
+    consumer: api,
     sink: config.delivery.sink,
     resolveAgent,
     deliver,
@@ -134,11 +136,19 @@ export function apply(ctx, pluginConfig = {}) {
     log('宿主没有 webServer，设置面板的接口没挂上（投递照常）')
   }
 
-  log(`started sink=${config.delivery.sink} interval=${settings.intervalMs}ms queue=${queue.path}`)
-  ctx.effect(() => () => {
-    loop.stop()
-    queue.close()
-  })
+  log(`started sink=${config.delivery.sink} interval=${settings.intervalMs}ms daemon=${daemonUrl}`)
+  ctx.effect(() => () => loop.stop())
+}
+
+/** 读守护进程的 token：它写在 state 目录里（0600），插件和适配器都从这里拿。 */
+function readToken(stateDir, log) {
+  const path = join(stateDir, 'token')
+  try {
+    return readFileSync(path, 'utf8').trim()
+  } catch (error) {
+    log(`读不到 token（${path}）：${error?.message ?? error}；守护进程起来后会自动重试`)
+    return ''
+  }
 }
 
 /** 设置界面的扁平字段 → 分层配置。没填的字段不覆盖，交给默认值。 */

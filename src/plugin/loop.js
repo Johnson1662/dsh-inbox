@@ -19,6 +19,7 @@ export function batchIdOf(batch) {
  */
 export function createDeliveryLoop({
   queue,
+  consumer,
   sink = 'chief',
   resolveAgent,
   deliver,
@@ -33,33 +34,49 @@ export function createDeliveryLoop({
   let retryAt = 0
   let batchLimits = toLimits(limits)
   let period = intervalMs
+  let backlogSeen = 0
+  // 有 HTTP 客户端就用它；直接给 queue 时包一层（单进程测试、脚本用）
+  const api = consumer ?? queueConsumer(queue, sink)
 
   async function drain() {
     if (running || now() < retryAt) return
     running = true
     try {
-      // 先按放大后的条数上限取候选，再由 pick 按条数/字数裁出这一批；裁掉的留在库里等下一批
-      const backlog = queue.pending(sink)
-      const ceiling = effectiveLimits(batchLimits, backlog)
-      const candidates = queue.take(sink, Math.min(limit, ceiling.count))
-      const { batch, rest } = pick(candidates, batchLimits, { backlog })
-      if (!batch.length) return
+      // 先按（可能放大过的）条数上限取候选，再由 pick 按条数/字数裁出这一批。
+      // 裁掉的不用管：done 时只点名投出去的那些，剩下的由守护进程放回队列。
+      // 第一轮不知道积压多深：问一次（之后全靠 take 的返回值，不再多打请求）
+      if (!backlogSeen && typeof api.backlog === 'function') {
+        backlogSeen = await api.backlog(sink).catch(() => 0) || 0
+      }
+      const ceiling = effectiveLimits(batchLimits, backlogSeen)
+      const taken = await api.take(Math.min(limit, ceiling.count), { sink })
+      const candidates = taken.events ?? []
+      if (!candidates.length) return
+      backlogSeen = taken.backlog ?? candidates.length
+
+      const { batch } = pick(candidates, batchLimits, { backlog: backlogSeen })
+      if (!batch.length) {
+        await api.retry(taken.ticket, '一条都装不下')
+        return
+      }
 
       const agent = resolveAgent(sink)
       if (!agent) {
-        log(`sink=${sink} 没有可用会话，${batch.length} 条继续等待`)
+        // 目标会话不在：整批退回去，等下一轮
+        await api.retry(taken.ticket, '目标会话不可用')
+        log(`sink=${sink} 没有可用会话，${candidates.length} 条继续等待`)
         return
       }
 
       const id = batchIdOf(batch)
       try {
         await deliver(agent, { id, text: render(batch) })
-        queue.ack(batch.map(event => event.id))
+        const result = await api.done(taken.ticket, batch.map(event => event.id))
         failures = 0
         retryAt = 0
-        log(`delivered ${id} events=${batch.length}${rest.length ? ` 顺延=${rest.length}` : ''}`)
+        log(`delivered ${id} events=${batch.length}${result?.released ? ` 顺延=${result.released}` : ''}`)
       } catch (error) {
-        queue.fail(batch.map(event => event.id), error?.message ?? String(error))
+        await api.retry(taken.ticket, error?.message ?? String(error))
         failures += 1
         retryAt = now() + Math.min(2 ** failures * 1000, 60000)
         log(`投递失败 sink=${sink} events=${batch.length}: ${error?.message ?? error}`)
@@ -82,6 +99,24 @@ export function createDeliveryLoop({
   }
 
   return { drain, update, stop: () => clearInterval(timer) }
+}
+
+/** 把队列对象包成 API 客户端的样子：测试和单进程脚本直接用，不必起 HTTP。 */
+export function queueConsumer(queue, sink = 'chief') {
+  return {
+    async take(limit) {
+      return queue.takeBatch(sink, limit)
+    },
+    async backlog() {
+      return queue.pending(sink)
+    },
+    async done(ticket, ids) {
+      return queue.done(ticket, ids)
+    },
+    async retry(ticket, reason) {
+      return queue.retry(ticket, reason)
+    },
+  }
 }
 
 /**
