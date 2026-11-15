@@ -1,3 +1,4 @@
+;(() => {
 /**
  * dsh-personal-context —— 浏览器半端：设置页里的「个人上下文」面板。
  *
@@ -9,15 +10,15 @@
  *
  * 校验一律在宿主侧（settings.js），本文件只收集与呈现。
  */
-const MODULE_LOADER =
+const loader =
   typeof window !== 'undefined' && window.__ModuleLoader__ && typeof window.__ModuleLoader__.load === 'function'
     ? window.__ModuleLoader__
     : (() => {
         throw new Error('[dsh-personal-context] 需要 DSH ≥ 0.2.0-rc.2（宿主没有 window.__ModuleLoader__），请升级 DSH')
       })()
 
-MODULE_LOADER.load({
-  id: 'dsh-personal-context',
+loader.load({
+  id: 'dsh-personal-context-core',
   factory: require => {
     const React = require('react')
     const h = React.createElement
@@ -263,3 +264,5 @@ MODULE_LOADER.load({
     }
   },
 })
+
+})()

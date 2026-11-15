@@ -56,7 +56,7 @@ function loadClient() {
 
 test('client.js 注册进 settings.section，并挂上自己的样式', () => {
   const { loaded, injected, registered, styles } = loadClient()
-  assert.equal(loaded.id, 'dsh-personal-context')
+  assert.equal(loaded.id, 'dsh-personal-context-core', 'id 必须与包名一致，否则 client-modules 报重复注册')
   assert.deepEqual(injected, ['settings.section'])
   assert.equal(registered.length, 1)
   assert.equal(registered[0].options.name, 'settings.section')
