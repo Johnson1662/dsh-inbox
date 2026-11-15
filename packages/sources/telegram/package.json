@@ -1,6 +1,6 @@
 {
   "name": "dsh-personal-context-source-telegram",
-  "version": "0.7.7",
+  "version": "0.7.10",
   "type": "module",
   "description": "Telegram 来源：轮询会话，把新消息写成信封交给守护进程",
   "main": "./index.js",

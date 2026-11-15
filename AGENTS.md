@@ -20,7 +20,7 @@
 | `packages/core/src/daemon/` | 常驻进程：HTTP、看护来源子进程、投递循环 | 改生命周期、改 HTTP 接口 |
 | `packages/core/src/plugin/` | 接收端（DSH）：`take/done/retry` 的参考实现 + 设置面板 | 改投递行为、改界面 |
 | `packages/core/src/cli/` | `init / status / sources / log` | 加命令 |
-| `packages/sources/*/` | 各路来源：`package.json` 声明 + `index.js` 宿主半端 + worker | 加来源、改采集 |
+| `packages/sources/*/` | 各路来源：`package.json` 声明 + `index.js` 宿主半端 + worker（telegram / feishu / wx） | 加来源、改采集 |
 | `cordis.patch.yml` | 壳包：把三个组件插进 DSH 组合 | 加/删组件 |
 | `deploy/pack.sh` | 打 tgz，壳包依赖指向本地 tgz | 加新包 |
 

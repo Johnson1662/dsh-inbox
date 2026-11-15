@@ -19,7 +19,7 @@ pack_one() {
 }
 
 echo "打包组件："
-for dir in packages/core packages/sources/telegram packages/sources/feishu; do
+for dir in packages/core packages/sources/telegram packages/sources/feishu packages/sources/wx; do
   pack_one "$root/$dir"
 done
 
@@ -30,7 +30,8 @@ jq --arg pkgs "$pkgs" '
   .dependencies = {
     "dsh-personal-context-core": ("file:" + $pkgs + "/dsh-personal-context-core-" + .version + ".tgz"),
     "dsh-personal-context-source-telegram": ("file:" + $pkgs + "/dsh-personal-context-source-telegram-" + .version + ".tgz"),
-    "dsh-personal-context-source-feishu": ("file:" + $pkgs + "/dsh-personal-context-source-feishu-" + .version + ".tgz")
+    "dsh-personal-context-source-feishu": ("file:" + $pkgs + "/dsh-personal-context-source-feishu-" + .version + ".tgz"),
+    "dsh-personal-context-source-wx": ("file:" + $pkgs + "/dsh-personal-context-source-wx-" + .version + ".tgz")
   }' "$root/package.json" > "$tmp/package.json"
 ( cd "$tmp" && npm pack --silent >/dev/null )
 tgz=$(ls -t "$tmp"/*.tgz | head -1)

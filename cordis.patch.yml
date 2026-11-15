@@ -1,5 +1,5 @@
-# dsh-personal-context —— 壳包：只负责把三个组件插进组合。
-# 装这一个包，pnpm 会把 core 与两路来源一起装下来。
+# dsh-personal-context —— 壳包：只负责把各个组件插进组合。
+# 装这一个包，pnpm 会把 core 与几路来源一起装下来。
 - insert:
     - id: dsh-personal-context-core
       name: dsh-personal-context-core
@@ -16,6 +16,9 @@
         telegramIntervalMs: 8000
         feishuEnabled: true
         feishuIntervalMs: 5000
+        sources:
+          wx:
+            enabled: false          # 白名单（chats）是个人数据，不进仓库；在本地 config.json 里开
         routes:
           - sources: ["*"]
             sink: chief
@@ -24,3 +27,5 @@
       name: dsh-personal-context-source-telegram
     - id: dsh-personal-context-source-feishu
       name: dsh-personal-context-source-feishu
+    - id: dsh-personal-context-source-wx
+      name: dsh-personal-context-source-wx
