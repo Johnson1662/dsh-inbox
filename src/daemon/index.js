@@ -6,6 +6,7 @@ import { configPath, expandHome, loadConfig } from '../core/config.js'
 import { createCredentialRules, normalize, stripCredentials } from '../core/envelope.js'
 import { openQueue } from '../core/queue.js'
 import { createSupervisor } from './supervisor.js'
+import { DEFAULT_SOURCE_DIRS, loadSourceManifests } from '../core/sources.js'
 
 const MAX_BODY = 1024 * 1024
 
@@ -18,8 +19,17 @@ export function createDaemon(config, { log = () => {} } = {}) {
   const credentials = createCredentialRules(config.credentials)
   let current = config
   // 来源进程和 HTTP 入口走同一条管道：normalize 过、凭据规则过，才进队列
+  // 来源包可以在 profile 的 node_modules 里，也可以在自定义目录里
+  const sourceDirs = (process.env.PERSONAL_CONTEXT_SOURCE_DIRS ?? '')
+    .split(':')
+    .map(dir => dir.trim())
+    .filter(Boolean)
+  const manifests = loadSourceManifests({ dirs: sourceDirs.length ? sourceDirs : DEFAULT_SOURCE_DIRS })
+  if (manifests.length) log(`发现来源包：${manifests.map(m => `${m.name}@${m.version}`).join('、')}`)
+
   const sources = createSupervisor({
     stateDir,
+    manifests,
     credentials,
     log,
     ingest(envelope) {

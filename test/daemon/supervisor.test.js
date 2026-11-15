@@ -48,7 +48,7 @@ test('发现规则：.js 交给 node，.py 交给 python3', t => {
   writeFileSync(join(root, 'beta.py'), '# stub', 'utf8')
 
   const js = discover('alpha', { root })
-  assert.equal(js.command, 'node')
+  assert.equal(js.command, process.execPath, 'js 用当前 node 可执行文件，别依赖 PATH')
   assert.equal(js.path, join(root, 'alpha.js'))
   assert.deepEqual(js.args, [join(root, 'alpha.js')])
 
@@ -61,7 +61,7 @@ test('发现规则：两种实现都在时用 .js，都没有则返回 null', t 
   const { root } = workspace(t)
   writeFileSync(join(root, 'both.js'), '// stub', 'utf8')
   writeFileSync(join(root, 'both.py'), '# stub', 'utf8')
-  assert.equal(discover('both', { root }).command, 'node')
+  assert.equal(discover('both', { root }).command, process.execPath)
   assert.equal(discover('nothing-here', { root }), null)
 })
 

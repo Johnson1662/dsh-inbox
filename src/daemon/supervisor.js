@@ -15,6 +15,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { normalize, stripCredentials } from '../core/envelope.js'
+import { legacySpec, spawnSpec } from '../core/sources.js'
 
 /** 来源实现的默认目录：src/sources/<name>.{js,py} */
 export const SOURCE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'sources')
@@ -34,14 +35,20 @@ const LINE_IN_LOG = 200
  * 找来源实现。没有实现返回 null——「配置里有但没写」是正常状态，不是错误。
  * @returns {{name: string, path: string, command: string, args: string[]} | null}
  */
-export function discover(name, { root = SOURCE_ROOT } = {}) {
+export function discover(name, { root = SOURCE_ROOT, manifest } = {}) {
   const plain = typeof name === 'string' ? name.trim() : ''
   // 名字就是文件名，不许带路径：来源名来自配置，不能变成任意文件执行
   if (!plain || /[\\/]/.test(plain) || plain === '.' || plain === '..') return null
-  for (const [extension, command] of RUNTIMES) {
-    const path = join(root, `${plain}${extension}`)
-    if (existsSync(path)) return { name: plain, path, command, args: [path] }
+
+  // ① 装了来源包：按它的声明起（runtime + entry）
+  if (manifest) {
+    const spec = spawnSpec(manifest)
+    if (spec) return { name: plain, path: manifest.entry, command: spec.command, args: spec.args, manifest }
   }
+
+  // ② 仓库内的老路径兜底
+  const legacy = legacySpec(plain, root)
+  if (legacy) return { name: plain, path: legacy.path, command: legacy.command, args: legacy.args }
   return null
 }
 
@@ -104,6 +111,7 @@ export function sourceEnv(name, sourceConfig = {}, { stateDir, env = process.env
  */
 export function createSupervisor({
   root = SOURCE_ROOT,
+  manifests = [],
   stateDir,
   ingest = () => {},
   credentials,
@@ -115,6 +123,7 @@ export function createSupervisor({
   stopTimeoutMs = 5_000,
 } = {}) {
   const records = new Map()
+  const manifestOf = new Map(manifests.map(manifest => [manifest.name, manifest]))
 
   function record(name) {
     let rec = records.get(name)
@@ -193,9 +202,9 @@ export function createSupervisor({
       log(`WARN 来源 ${name} 已经在跑，不重复拉`)
       return null
     }
-    const implementation = discover(name, { root })
+    const implementation = discover(name, { root, manifest: manifestOf.get(name) })
     if (!implementation) {
-      log(`WARN 来源 ${name} 已启用，但 ${root} 下没有 ${name}.js 或 ${name}.py——跳过`)
+      log(`WARN 来源 ${name} 已启用，但既没有 dsh.source 声明的包，${root} 下也没有 ${name}.js / ${name}.py——跳过`)
       return null
     }
     const rec = record(name)
