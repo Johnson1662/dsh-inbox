@@ -150,7 +150,7 @@ DSH 插件就是按这个写法实现的（`src/plugin/api-client.js`），它�
 
 投递循环每 500ms 取一次待投事件。**如果这 500ms 里攒了多条，它们被打包成一条消息**投进会话——但**批内每条事件都完整保留**，一行一条，不做摘要、不改写、不合并内容。
 
-**延迟预算**：来源轮询间隔 + 投递间隔。Telegram 默认 8 秒、飞书 5 秒，投递 ≤0.5 秒，所以「发出去到出现在会话里」最坏是一个轮询周期。实测入库→投递 138ms。要更快就调 `PC_TELEGRAM_INTERVAL_MS` / `PC_FEISHU_INTERVAL_MS`，不用改代码。
+**延迟预算**：来源轮询间隔 + 投递间隔。Telegram 默认 8 秒、飞书 5 秒，投递 ≤0.5 秒，所以「发出去到出现在会话里」最坏是一个轮询周期。实测入库→投递 138ms。要更快就调 `PERSONAL_CONTEXT_TELEGRAM_INTERVAL_MS` / `PERSONAL_CONTEXT_FEISHU_INTERVAL_MS`，不用改代码。
 
 **上限与溢出**：单批 50 条 / 4000 字。装不下就顺延到下一批；积压超过 200 条时上限放大到 200 条 / 20000 字——放大是为了少唤醒几次，**不是为了少投几条**。
 
@@ -231,22 +231,22 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 
 | 变量 | 作用 | 默认 |
 |---|---|---|
-| `PC_STATE_DIR` | 状态目录 | `~/.dsh/state/personal-context` |
-| `PC_CONFIG` | 守护进程读的配置文件 | `<stateDir>/config.json` |
-| `PC_HTTP_LISTEN` | 收事件的地址 | `127.0.0.1:7788` |
-| `PC_HTTP_TOKEN` | 收事件的 token | 首次启动生成，存 `<stateDir>/token`（0600） |
-| `PC_SINK` | 投递目标名 | `chief` |
-| `PC_DELIVERY_INTERVAL_MS` | 投递循环间隔 | `500` |
-| `PC_BATCH_COUNT` / `PC_BATCH_CHARS` | 单批上限 | `50` / `4000` |
-| `PC_BACKLOG_COUNT` / `PC_BACKLOG_CHARS` | 积压放大时的上限 | `200` / `20000` |
-| `PC_TELEGRAM_INTERVAL_MS` | TG 轮询间隔（默认值，设置界面可改） | `8000` |
-| `PC_TELEGRAM_API_ID` / `PC_TELEGRAM_API_HASH` / `PC_TELEGRAM_SESSION` | TG 凭据与会话文件 | 无（启用即必填） |
-| `PC_FEISHU_INTERVAL_MS` | 飞书轮询间隔（默认值，设置界面可改） | `5000` |
-| `PC_TELEGRAM_PROXY` | TG 走的代理（`socks5://host:port`） | 无 |
-| `PC_TELEGRAM_CHATS` | 只采这些会话，逗号分隔；空=全部 | 空 |
-| `PC_TELEGRAM_BACKFILL` | 首次见到一个会话时回填最近几条；`0` = 只从当前最新开始，不回溯历史 | `0` |
-| `PC_TELEGRAM_ONCE` | 只跑一轮就退出，手工验活用（**别写进 `sources.env`**，否则常驻进程起来采集一轮就停） | 无 |
-| `PC_CREDENTIAL_CHATS` / `PC_CREDENTIAL_PATTERNS` | 凭据类判定规则 | `777000` / 验证码词表 |
+| `PERSONAL_CONTEXT_STATE_DIR` | 状态目录 | `~/.dsh/state/personal-context` |
+| `PERSONAL_CONTEXT_CONFIG` | 守护进程读的配置文件 | `<stateDir>/config.json` |
+| `PERSONAL_CONTEXT_HTTP_LISTEN` | 收事件的地址 | `127.0.0.1:7788` |
+| `PERSONAL_CONTEXT_HTTP_TOKEN` | 收事件的 token | 首次启动生成，存 `<stateDir>/token`（0600） |
+| `PERSONAL_CONTEXT_SINK` | 投递目标名 | `chief` |
+| `PERSONAL_CONTEXT_DELIVERY_INTERVAL_MS` | 投递循环间隔 | `500` |
+| `PERSONAL_CONTEXT_BATCH_COUNT` / `PERSONAL_CONTEXT_BATCH_CHARS` | 单批上限 | `50` / `4000` |
+| `PERSONAL_CONTEXT_BACKLOG_COUNT` / `PERSONAL_CONTEXT_BACKLOG_CHARS` | 积压放大时的上限 | `200` / `20000` |
+| `PERSONAL_CONTEXT_TELEGRAM_INTERVAL_MS` | TG 轮询间隔（默认值，设置界面可改） | `8000` |
+| `PERSONAL_CONTEXT_TELEGRAM_API_ID` / `PERSONAL_CONTEXT_TELEGRAM_API_HASH` / `PERSONAL_CONTEXT_TELEGRAM_SESSION` | TG 凭据与会话文件 | 无（启用即必填） |
+| `PERSONAL_CONTEXT_FEISHU_INTERVAL_MS` | 飞书轮询间隔（默认值，设置界面可改） | `5000` |
+| `PERSONAL_CONTEXT_TELEGRAM_PROXY` | TG 走的代理（`socks5://host:port`） | 无 |
+| `PERSONAL_CONTEXT_TELEGRAM_CHATS` | 只采这些会话，逗号分隔；空=全部 | 空 |
+| `PERSONAL_CONTEXT_TELEGRAM_BACKFILL` | 首次见到一个会话时回填最近几条；`0` = 只从当前最新开始，不回溯历史 | `0` |
+| `PERSONAL_CONTEXT_TELEGRAM_ONCE` | 只跑一轮就退出，手工验活用（**别写进 `sources.env`**，否则常驻进程起来采集一轮就停） | 无 |
+| `PERSONAL_CONTEXT_CREDENTIAL_CHATS` / `PERSONAL_CONTEXT_CREDENTIAL_PATTERNS` | 凭据类判定规则 | `777000` / 验证码词表 |
 
 启用了某路来源却缺凭据时，**启动直接报错并点名缺什么**，不会静默关掉。
 
@@ -256,14 +256,14 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 
 ### 来源进程拿到什么
 
-守护进程把 `config.sources.<name>` 摊成环境变量交给子进程，键名转成 `PC_SOURCE_<UPPER_SNAKE>`：`intervalMs` → `PC_SOURCE_INTERVAL_MS`、`apiId` → `PC_SOURCE_API_ID`。外加 `PC_STATE_DIR` 与 `PC_SOURCE_NAME`。**来源进程只认环境变量，不读配置文件**，所以新增一路来源不需要改守护进程。
+守护进程把 `config.sources.<name>` 摊成环境变量交给子进程，键名转成 `PERSONAL_CONTEXT_SOURCE_<UPPER_SNAKE>`：`intervalMs` → `PERSONAL_CONTEXT_SOURCE_INTERVAL_MS`、`apiId` → `PERSONAL_CONTEXT_SOURCE_API_ID`。外加 `PERSONAL_CONTEXT_STATE_DIR` 与 `PERSONAL_CONTEXT_SOURCE_NAME`。**来源进程只认环境变量，不读配置文件**，所以新增一路来源不需要改守护进程。
 
 凭据落在 `~/.dsh/state/personal-context/sources.env`（0600），systemd 用 `EnvironmentFile` 加载；不进 git、不进设置界面。
 
 
 ## 加一路来源（不动投递）
 
-1. 写 `src/sources/<name>.js` 或 `<name>.py`：从 `PC_SOURCE_*` 读配置，往 stdout 写一行一个信封，日志走 stderr。
+1. 写 `src/sources/<name>.js` 或 `<name>.py`：从 `PERSONAL_CONTEXT_SOURCE_*` 读配置，往 stdout 写一行一个信封，日志走 stderr。
 2. 在配置里加 `sources.<name>.enabled = true`（和它自己需要的键）。
 
 守护进程按文件名约定发现，没有注册表要改；投递侧一行都不用动。

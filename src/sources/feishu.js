@@ -727,7 +727,7 @@ async function mapWithLimit(items, limit, worker, aborted = () => false) {
 // ---------------------------------------------------------------------------
 
 /**
- * 可执行文件由 PC_SOURCE_LARK_CLI 指定（默认 lark-cli）。
+ * 可执行文件由 PERSONAL_CONTEXT_SOURCE_LARK_CLI 指定（默认 lark-cli）。
  * 成功 resolve({ stdout })；失败 reject，错误对象带 exitCode / stdout / stderr。
  */
 export function createCliExec({ bin = DEFAULTS.cli, timeoutMs = DEFAULTS.timeoutMs } = {}) {
@@ -801,7 +801,7 @@ export async function preflight(exec) {
         ok: false,
         message:
           '找不到 lark-cli 可执行文件。请先安装 lark-cli 并完成 lark-cli config init，' +
-          '或用环境变量 PC_SOURCE_LARK_CLI 指定可执行文件路径。',
+          '或用环境变量 PERSONAL_CONTEXT_SOURCE_LARK_CLI 指定可执行文件路径。',
       }
     }
     return { ok: false, message: `调用 lark-cli 失败：${shortReason(error)}` }
@@ -848,11 +848,11 @@ function readInt(value, fallback) {
  * 系统提示：不写库、不知道 sink、不认识 agent。
  */
 export async function main({ env = process.env, out = process.stdout, err = process.stderr } = {}) {
-  const stateDir = expandHome(env.PC_STATE_DIR || DEFAULTS.stateDir)
-  // PC_SOURCE_* 是本来源自己的开关；PC_FEISHU_* 是 config.js 给守护进程用的同名项，认它做兜底。
-  const intervalMs = readInt(env.PC_SOURCE_INTERVAL_MS ?? env.PC_FEISHU_INTERVAL_MS, DEFAULTS.intervalMs)
-  const concurrency = readInt(env.PC_SOURCE_CONCURRENCY ?? env.PC_FEISHU_CONCURRENCY, DEFAULTS.concurrency)
-  const bin = env.PC_SOURCE_LARK_CLI || env.PC_FEISHU_LARK_CLI || DEFAULTS.cli
+  const stateDir = expandHome(env.PERSONAL_CONTEXT_STATE_DIR || DEFAULTS.stateDir)
+  // PERSONAL_CONTEXT_SOURCE_* 是本来源自己的开关；PERSONAL_CONTEXT_FEISHU_* 是 config.js 给守护进程用的同名项，认它做兜底。
+  const intervalMs = readInt(env.PERSONAL_CONTEXT_SOURCE_INTERVAL_MS ?? env.PERSONAL_CONTEXT_FEISHU_INTERVAL_MS, DEFAULTS.intervalMs)
+  const concurrency = readInt(env.PERSONAL_CONTEXT_SOURCE_CONCURRENCY ?? env.PERSONAL_CONTEXT_FEISHU_CONCURRENCY, DEFAULTS.concurrency)
+  const bin = env.PERSONAL_CONTEXT_SOURCE_LARK_CLI || env.PERSONAL_CONTEXT_FEISHU_LARK_CLI || DEFAULTS.cli
 
   const exec = createCliExec({ bin })
   const ready = await preflight(exec)

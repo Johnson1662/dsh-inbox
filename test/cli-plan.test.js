@@ -4,9 +4,9 @@ import { buildConfig, buildEnvFile, buildLaunchdPlist, buildSystemdUnit, cleanVa
 
 test('env 文件只写有值的项，凭据不落进 config.json', () => {
   const env = buildEnvFile({ telegram: { apiId: '123', apiHash: 'abc', session: '/tmp/x.session', proxy: 'socks5://127.0.0.1:7897' } })
-  assert.match(env, /PC_TELEGRAM_API_ID=123/)
-  assert.match(env, /PC_TELEGRAM_PROXY=socks5:\/\/127.0.0.1:7897/)
-  assert.doesNotMatch(env, /PC_FEISHU_LARK_CLI/)
+  assert.match(env, /PERSONAL_CONTEXT_TELEGRAM_API_ID=123/)
+  assert.match(env, /PERSONAL_CONTEXT_TELEGRAM_PROXY=socks5:\/\/127.0.0.1:7897/)
+  assert.doesNotMatch(env, /PERSONAL_CONTEXT_FEISHU_LARK_CLI/)
 
   const config = buildConfig({ telegramEnabled: true })
   assert.doesNotMatch(JSON.stringify(config), /abc/, 'config.json 里不该出现 apiHash')
@@ -14,7 +14,7 @@ test('env 文件只写有值的项，凭据不落进 config.json', () => {
 
 test('chats 数组拼成逗号串，空值不写', () => {
   const env = buildEnvFile({ telegram: { chats: [1, 2, 3], apiHash: '' } })
-  assert.match(env, /PC_TELEGRAM_CHATS=1,2,3/)
+  assert.match(env, /PERSONAL_CONTEXT_TELEGRAM_CHATS=1,2,3/)
   assert.doesNotMatch(env, /API_HASH/)
 })
 

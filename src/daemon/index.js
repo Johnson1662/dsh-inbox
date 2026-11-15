@@ -215,7 +215,7 @@ function readOrCreateToken(stateDir, log) {
 }
 
 if (process.argv[1]?.endsWith(join('daemon', 'index.js'))) {
-  const file = process.argv[2] ?? process.env.PC_CONFIG
+  const file = process.argv[2] ?? process.env.PERSONAL_CONTEXT_CONFIG
   // 配置文件缺失不是错误：插件还没跑过时用默认值 + 环境变量顶上
   const overrides = file && existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {}
   if (file && !existsSync(file)) console.log(`config: ${file} 不存在，用默认值 + 环境变量`)

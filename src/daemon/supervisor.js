@@ -7,7 +7,7 @@
  * 不变式：
  *  - 一行 stdout = 一个信封；坏行记日志丢掉，绝不中断后续行
  *  - 非零退出或异常 → 退避重启；正常退出（0）不重启；SIGTERM 之后不再重启
- *  - 父进程已有的 PC_TELEGRAM_* 之类环境变量原样透传，只往上加 PC_SOURCE_*
+ *  - 父进程已有的 PERSONAL_CONTEXT_TELEGRAM_* 之类环境变量原样透传，只往上加 PERSONAL_CONTEXT_SOURCE_*
  */
 
 import { spawn as spawnChild } from 'node:child_process'
@@ -25,7 +25,7 @@ const RUNTIMES = [
   ['.py', 'python3'],
 ]
 
-const ENV_PREFIX = 'PC_SOURCE_'
+const ENV_PREFIX = 'PERSONAL_CONTEXT_SOURCE_'
 
 /** 坏行日志里最多留多少字符：够定位问题，又不至于把一整条消息灌进日志。 */
 const LINE_IN_LOG = 200
@@ -66,14 +66,14 @@ function envValue(value) {
 }
 
 /**
- * 子进程的环境：父进程的全套继承下来（PC_TELEGRAM_* 之类要原样透传），
- * 再加上 PC_STATE_DIR / PC_SOURCE_NAME / 每个配置键对应的 PC_SOURCE_<UPPER_SNAKE>。
- * 后加的优先——配置是这一层的事实来源，父进程的 PC_SOURCE_* 不会盖掉它。
+ * 子进程的环境：父进程的全套继承下来（PERSONAL_CONTEXT_TELEGRAM_* 之类要原样透传），
+ * 再加上 PERSONAL_CONTEXT_STATE_DIR / PERSONAL_CONTEXT_SOURCE_NAME / 每个配置键对应的 PERSONAL_CONTEXT_SOURCE_<UPPER_SNAKE>。
+ * 后加的优先——配置是这一层的事实来源，父进程的 PERSONAL_CONTEXT_SOURCE_* 不会盖掉它。
  */
 export function sourceEnv(name, sourceConfig = {}, { stateDir, env = process.env } = {}) {
   const out = { ...env }
-  if (stateDir !== undefined && stateDir !== null && stateDir !== '') out.PC_STATE_DIR = String(stateDir)
-  out.PC_SOURCE_NAME = String(name)
+  if (stateDir !== undefined && stateDir !== null && stateDir !== '') out.PERSONAL_CONTEXT_STATE_DIR = String(stateDir)
+  out.PERSONAL_CONTEXT_SOURCE_NAME = String(name)
   for (const [key, value] of Object.entries(sourceConfig ?? {})) {
     const envName = `${ENV_PREFIX}${toEnvName(key)}`
     // 名字这一格归 supervisor：配置里写 name 不能把来源名改掉
@@ -93,7 +93,7 @@ export function sourceEnv(name, sourceConfig = {}, { stateDir, env = process.env
  * 造一个看护者。
  *
  * @param options.root            来源目录（默认 src/sources）
- * @param options.stateDir        传给子进程的 PC_STATE_DIR
+ * @param options.stateDir        传给子进程的 PERSONAL_CONTEXT_STATE_DIR
  * @param options.ingest          收信封的回调（已经 normalize + stripCredentials 过）
  * @param options.credentials     凭据规则，createCredentialRules() 的产物
  * @param options.env             父进程环境（默认 process.env，测试可注入）

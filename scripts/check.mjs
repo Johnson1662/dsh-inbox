@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-const stateDir = (process.env.PC_STATE_DIR ?? '~/.dsh/state/personal-context').replace(/^~/, homedir())
+const stateDir = (process.env.PERSONAL_CONTEXT_STATE_DIR ?? '~/.dsh/state/personal-context').replace(/^~/, homedir())
 const db = new DatabaseSync(join(stateDir, 'context.sqlite'))
 
 const states = db.prepare('SELECT state, COUNT(*) AS n FROM events GROUP BY state').all()

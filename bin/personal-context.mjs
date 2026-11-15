@@ -2,10 +2,10 @@
 /**
  * pc —— 一条命令把这个东西装起来。
  *
- *   pc init     问凭据 → 写 sources.env / config.json → 装开机自启 → 起服务 → 报告状态
- *   pc status   队列多少条、每路来源在不在跑、有没有停滞
- *   pc sources  列出来源与它们的运行情况
- *   pc log      跟着看守护进程日志（journalctl 或 tail）
+ *   personal-context init     问凭据 → 写 sources.env / config.json → 装开机自启 → 起服务 → 报告状态
+ *   personal-context status   队列多少条、每路来源在不在跑、有没有停滞
+ *   personal-context sources  列出来源与它们的运行情况
+ *   personal-context log      跟着看守护进程日志（journalctl 或 tail）
  *
  * 平台差异（systemd / launchd）只出现在 servicePlan 里。
  */
@@ -20,7 +20,7 @@ import { buildConfig, buildEnvFile, buildLaunchdPlist, buildSystemdUnit, service
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const args = parseArgs(process.argv.slice(2))
 const command = args._[0] ?? 'help'
-const stateDir = expand(args['state-dir'] ?? process.env.PC_STATE_DIR ?? '~/.dsh/state/personal-context')
+const stateDir = expand(args['state-dir'] ?? process.env.PERSONAL_CONTEXT_STATE_DIR ?? '~/.dsh/state/personal-context')
 
 main().catch(error => {
   console.error(`✗ ${error?.message ?? error}`)
@@ -83,11 +83,11 @@ async function collect(existing) {
   }
 
   const telegram = {
-    apiId: args['telegram-api-id'] ?? existing.PC_TELEGRAM_API_ID ?? '',
-    apiHash: args['telegram-api-hash'] ?? existing.PC_TELEGRAM_API_HASH ?? '',
-    session: args['telegram-session'] ?? existing.PC_TELEGRAM_SESSION ?? '',
-    proxy: args['telegram-proxy'] ?? existing.PC_TELEGRAM_PROXY ?? '',
-    chats: args['telegram-chats'] ?? existing.PC_TELEGRAM_CHATS ?? '',
+    apiId: args['telegram-api-id'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_API_ID ?? '',
+    apiHash: args['telegram-api-hash'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_API_HASH ?? '',
+    session: args['telegram-session'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_SESSION ?? '',
+    proxy: args['telegram-proxy'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_PROXY ?? '',
+    chats: args['telegram-chats'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_CHATS ?? '',
   }
 
   if (wantTelegram) {
@@ -101,7 +101,7 @@ async function collect(existing) {
   const feishuEnabled = args.feishu === true || args.telegram === false
   return {
     telegram,
-    feishu: { larkCli: args['lark-cli'] ?? existing.PC_FEISHU_LARK_CLI ?? '' },
+    feishu: { larkCli: args['lark-cli'] ?? existing.PERSONAL_CONTEXT_FEISHU_LARK_CLI ?? '' },
     telegramEnabled: wantTelegram && Boolean(telegram.apiId && telegram.apiHash && telegram.session),
     feishuEnabled,
   }
@@ -134,7 +134,7 @@ async function status() {
   const health = await call('/v1/health').catch(error => ({ error }))
   if (health.error) {
     console.error(`✗ 守护进程没起来：${health.error.message}`)
-    console.error(`  看日志：pc log`)
+    console.error(`  看日志：personal-context log`)
     process.exitCode = 1
     return
   }
@@ -181,7 +181,7 @@ function log() {
 
 async function call(path) {
   const token = readFileSync(join(stateDir, 'token'), 'utf8').trim()
-  const listen = process.env.PC_HTTP_LISTEN ?? '127.0.0.1:7788'
+  const listen = process.env.PERSONAL_CONTEXT_HTTP_LISTEN ?? '127.0.0.1:7788'
   const response = await fetch(`http://${listen}${path}`, { headers: { authorization: `Bearer ${token}` } })
   if (!response.ok) throw new Error(`${path} → ${response.status}`)
   return response.json()
@@ -229,7 +229,7 @@ function which(bin) {
     const candidate = join(dir, bin)
     if (existsSync(candidate)) return candidate
   }
-  throw new Error(`找不到 ${bin}，先装 Node 再跑 pc init`)
+  throw new Error(`找不到 ${bin}，先装 Node 再跑 personal-context init`)
 }
 
 function realpath(path) {
@@ -250,15 +250,15 @@ function run(bin, argv, { inherit = false, tolerate = false } = {}) {
 }
 
 function help() {
-  say(`pc — Personal-Context 命令行
+  say(`personal-context — Personal-Context 命令行
 
-  pc init [--telegram-api-id …] [--telegram-api-hash …] [--telegram-session …]
+  personal-context init [--telegram-api-id …] [--telegram-api-hash …] [--telegram-session …]
           [--telegram-proxy …] [--telegram-chats …] [--lark-cli …]
           [--state-dir …] [--yes] [--no-service] [--no-telegram]
       问凭据、写配置、装开机自启、起服务。已有配置不会覆盖。
 
-  pc status    队列与来源的当前状态
-  pc sources   每个来源收了多少、丢了多少
-  pc log [-f]  守护进程日志
+  personal-context status    队列与来源的当前状态
+  personal-context sources   每个来源收了多少、丢了多少
+  personal-context log [-f]  守护进程日志
 `)
 }

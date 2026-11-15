@@ -4,17 +4,17 @@
 这一路只负责"把看见的东西交上来"：不做判断、不摘要、不截断正文。
 stdout 只放信封，一个字节的日志都不许混进去；日志一律走 stderr。
 
-环境变量（supervisor 注入的 PC_SOURCE_*；手工单独跑时也认 PC_TELEGRAM_* 同名变量）：
-  PC_STATE_DIR           状态目录；水位存 <state>/watermarks/telegram.json
-  PC_SOURCE_SESSION      会话文件（没有扩展名时补 .session）
-  PC_SOURCE_API_ID       api_id
-  PC_SOURCE_API_HASH     api_hash
-  PC_SOURCE_INTERVAL_MS  轮询间隔，默认 8000
-  PC_SOURCE_BACKFILL     首轮回溯条数，默认 0 = 只从当前最新开始，不补历史
-  PC_SOURCE_PROXY        代理，形如 socks5://host:port
-  PC_SOURCE_CHATS        逗号分隔的 chat（数字 id 或 @username），空 = 全部 dialogs
-  PC_SOURCE_PYTHON       指定解释器（可选；不给就自己探）
-  PC_SOURCE_ONCE         1 = 只跑一轮就退出（真机验活用；和 PC_SOURCE_BACKFILL=1 搭配能看到一行）
+环境变量（supervisor 注入的 PERSONAL_CONTEXT_SOURCE_*；手工单独跑时也认 PERSONAL_CONTEXT_TELEGRAM_* 同名变量）：
+  PERSONAL_CONTEXT_STATE_DIR           状态目录；水位存 <state>/watermarks/telegram.json
+  PERSONAL_CONTEXT_SOURCE_SESSION      会话文件（没有扩展名时补 .session）
+  PERSONAL_CONTEXT_SOURCE_API_ID       api_id
+  PERSONAL_CONTEXT_SOURCE_API_HASH     api_hash
+  PERSONAL_CONTEXT_SOURCE_INTERVAL_MS  轮询间隔，默认 8000
+  PERSONAL_CONTEXT_SOURCE_BACKFILL     首轮回溯条数，默认 0 = 只从当前最新开始，不补历史
+  PERSONAL_CONTEXT_SOURCE_PROXY        代理，形如 socks5://host:port
+  PERSONAL_CONTEXT_SOURCE_CHATS        逗号分隔的 chat（数字 id 或 @username），空 = 全部 dialogs
+  PERSONAL_CONTEXT_SOURCE_PYTHON       指定解释器（可选；不给就自己探）
+  PERSONAL_CONTEXT_SOURCE_ONCE         1 = 只跑一轮就退出（真机验活用；和 PERSONAL_CONTEXT_SOURCE_BACKFILL=1 搭配能看到一行）
 
 退出码：SIGTERM / SIGINT 干净退出 0；任何配置或环境问题打印中文错误并退出 1。
 """
@@ -120,15 +120,15 @@ def ensure_telethon():
     if has_telethon(sys.executable):
         return
 
-    override = os.environ.get('PC_SOURCE_PYTHON') or os.environ.get('PC_TELEGRAM_PYTHON')
+    override = os.environ.get('PERSONAL_CONTEXT_SOURCE_PYTHON') or os.environ.get('PERSONAL_CONTEXT_TELEGRAM_PYTHON')
     if override:
         target = os.path.expanduser(override)
         if not has_telethon(target):
-            die(f'PC_SOURCE_PYTHON={override} 里没有 telethon。先 `{override} -m pip install telethon`，或换个解释器。')
+            die(f'PERSONAL_CONTEXT_SOURCE_PYTHON={override} 里没有 telethon。先 `{override} -m pip install telethon`，或换个解释器。')
         reexec(target)
 
     # 已经换过一次还不行：别再换，避免 exec 死循环
-    if os.environ.get('PC_SOURCE_PYTHON_PROBED') == '1':
+    if os.environ.get('PERSONAL_CONTEXT_SOURCE_PYTHON_PROBED') == '1':
         die(f'解释器 {sys.executable} 仍然没有 telethon。请 `{sys.executable} -m pip install telethon`。')
 
     log(f'当前解释器 {sys.executable} 没有 telethon，开始找带 telethon 的解释器')
@@ -141,7 +141,7 @@ def ensure_telethon():
 
     die(
         '找不到装了 telethon 的 Python 解释器。请任选一种办法：\n'
-        '  1) 用 PC_SOURCE_PYTHON=/path/to/python3 指定一个装过 telethon 的解释器\n'
+        '  1) 用 PERSONAL_CONTEXT_SOURCE_PYTHON=/path/to/python3 指定一个装过 telethon 的解释器\n'
         '  2) 给当前解释器装依赖：python3 -m pip install telethon\n'
         '  3) 在 ~/.dsh 或 PersonalAgent 下建一个 venv 并装上 telethon'
     )
@@ -150,7 +150,7 @@ def ensure_telethon():
 def reexec(python):
     """换成找到的解释器继续跑同一个脚本；带标记，避免无限 exec。"""
     env = dict(os.environ)
-    env['PC_SOURCE_PYTHON_PROBED'] = '1'
+    env['PERSONAL_CONTEXT_SOURCE_PYTHON_PROBED'] = '1'
     log(f'exec {python} {os.path.abspath(__file__)}')
     try:
         os.execve(python, [python, os.path.abspath(__file__), *sys.argv[1:]], env)
@@ -163,8 +163,8 @@ def reexec(python):
 
 
 def env(name, default=None):
-    """PC_SOURCE_X 优先；没走 supervisor（手工跑）时认 PC_TELEGRAM_X。"""
-    for key in (f'PC_SOURCE_{name}', f'PC_TELEGRAM_{name}'):
+    """PERSONAL_CONTEXT_SOURCE_X 优先；没走 supervisor（手工跑）时认 PERSONAL_CONTEXT_TELEGRAM_X。"""
+    for key in (f'PERSONAL_CONTEXT_SOURCE_{name}', f'PERSONAL_CONTEXT_TELEGRAM_{name}'):
         value = os.environ.get(key)
         if value is not None and value != '':
             return value
@@ -202,9 +202,9 @@ def parse_proxy(raw):
     parts = urlsplit(text)
     scheme = (parts.scheme or '').lower()
     if scheme not in ('socks5', 'socks4', 'http'):
-        die(f'PC_SOURCE_PROXY 的协议只支持 socks5 / socks4 / http，现在是 {scheme!r}')
+        die(f'PERSONAL_CONTEXT_SOURCE_PROXY 的协议只支持 socks5 / socks4 / http，现在是 {scheme!r}')
     if not parts.hostname or not parts.port:
-        die(f'PC_SOURCE_PROXY 要写成 scheme://host:port，现在是 {raw!r}')
+        die(f'PERSONAL_CONTEXT_SOURCE_PROXY 要写成 scheme://host:port，现在是 {raw!r}')
     proxy = {'proxy_type': scheme, 'addr': parts.hostname, 'port': parts.port, 'rdns': True}
     if parts.username:
         proxy['username'] = parts.username
@@ -216,22 +216,22 @@ def load_config():
     api_id = env('API_ID')
     api_hash = env('API_HASH')
     session = env('SESSION')
-    missing = [name for name, value in (('PC_SOURCE_API_ID', api_id),
-                                        ('PC_SOURCE_API_HASH', api_hash),
-                                        ('PC_SOURCE_SESSION', session)) if not value]
+    missing = [name for name, value in (('PERSONAL_CONTEXT_SOURCE_API_ID', api_id),
+                                        ('PERSONAL_CONTEXT_SOURCE_API_HASH', api_hash),
+                                        ('PERSONAL_CONTEXT_SOURCE_SESSION', session)) if not value]
     if missing:
         die(f'缺少 Telegram 凭据：{", ".join(missing)}（写进 <stateDir>/sources.env）')
     try:
         api_id = int(str(api_id).strip())
     except ValueError:
-        die(f'PC_SOURCE_API_ID 必须是整数，现在是 {api_id!r}')
+        die(f'PERSONAL_CONTEXT_SOURCE_API_ID 必须是整数，现在是 {api_id!r}')
 
     session_path = os.path.expanduser(session)
     if not Path(session_path).suffix:
         session_path += '.session'
 
-    # supervisor 给的是 PC_STATE_DIR；PC_SOURCE_STATE_DIR 留给配置里显式写 stateDir 的情况
-    state_dir_raw = env('STATE_DIR') or os.environ.get('PC_STATE_DIR') or '~/.dsh/state/personal-context'
+    # supervisor 给的是 PERSONAL_CONTEXT_STATE_DIR；PERSONAL_CONTEXT_SOURCE_STATE_DIR 留给配置里显式写 stateDir 的情况
+    state_dir_raw = env('STATE_DIR') or os.environ.get('PERSONAL_CONTEXT_STATE_DIR') or '~/.dsh/state/personal-context'
     state_dir = Path(os.path.expanduser(state_dir_raw))
     chats = [item.strip() for item in (env('CHATS', '') or '').split(',') if item.strip()]
 
@@ -318,7 +318,7 @@ def peer_id(entity):
 
 
 async def resolve_targets(client, cfg):
-    """PC_SOURCE_CHATS 有值就只盯这几个 chat；没有就全部 dialogs。"""
+    """PERSONAL_CONTEXT_SOURCE_CHATS 有值就只盯这几个 chat；没有就全部 dialogs。"""
     if not cfg['chats']:
         async for dialog in client.iter_dialogs():
             yield dialog.entity, dialog.name or chat_title(dialog.entity)
@@ -479,7 +479,7 @@ async def run(cfg):
         f'代理 {"无" if not cfg["proxy"] else cfg["proxy"]["addr"] + ":" + str(cfg["proxy"]["port"])}，'
         f'chats {"全部 dialogs" if not cfg["chats"] else "、".join(cfg["chats"])}')
     if cfg['once']:
-        log('PC_SOURCE_ONCE=1：只跑一轮')
+        log('PERSONAL_CONTEXT_SOURCE_ONCE=1：只跑一轮')
 
     watermarks = Watermarks(cfg['state_dir'] / 'watermarks' / 'telegram.json')
 
@@ -491,7 +491,7 @@ async def run(cfg):
         except Exception as error:  # noqa: BLE001 —— 一轮失败不退出，下一轮再来
             log(f'这一轮失败：{type(error).__name__}: {error}')
         if cfg['once']:
-            log('PC_SOURCE_ONCE=1：跑完一轮就走')
+            log('PERSONAL_CONTEXT_SOURCE_ONCE=1：跑完一轮就走')
             break
         try:
             await asyncio.wait_for(stop.wait(), timeout=cfg['interval'] / 1000)

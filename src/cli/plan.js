@@ -18,15 +18,15 @@ export function cleanValue(value, name) {
  * @param feishu   {larkCli}
  */
 export function buildEnvFile({ telegram = {}, feishu = {} } = {}) {
-  const lines = ['# Personal-Context 来源凭据（pc init 生成）。0600，别提交进 git。']
+  const lines = ['# Personal-Context 来源凭据（personal-context init 生成）。0600，别提交进 git。']
 
   const pairs = [
-    ['PC_TELEGRAM_API_ID', telegram.apiId],
-    ['PC_TELEGRAM_API_HASH', telegram.apiHash],
-    ['PC_TELEGRAM_SESSION', telegram.session],
-    ['PC_TELEGRAM_PROXY', telegram.proxy],
-    ['PC_TELEGRAM_CHATS', Array.isArray(telegram.chats) ? telegram.chats.join(',') : telegram.chats],
-    ['PC_FEISHU_LARK_CLI', feishu.larkCli],
+    ['PERSONAL_CONTEXT_TELEGRAM_API_ID', telegram.apiId],
+    ['PERSONAL_CONTEXT_TELEGRAM_API_HASH', telegram.apiHash],
+    ['PERSONAL_CONTEXT_TELEGRAM_SESSION', telegram.session],
+    ['PERSONAL_CONTEXT_TELEGRAM_PROXY', telegram.proxy],
+    ['PERSONAL_CONTEXT_TELEGRAM_CHATS', Array.isArray(telegram.chats) ? telegram.chats.join(',') : telegram.chats],
+    ['PERSONAL_CONTEXT_FEISHU_LARK_CLI', feishu.larkCli],
   ]
   for (const [key, value] of pairs) {
     const clean = cleanValue(value, key)
@@ -61,7 +61,7 @@ After=network-online.target
 Type=simple
 WorkingDirectory=${workdir}
 EnvironmentFile=${stateDir}/sources.env
-Environment=PC_CONFIG=${stateDir}/config.json
+Environment=PERSONAL_CONTEXT_CONFIG=${stateDir}/config.json
 Environment=PATH=${nodeBin}:/usr/local/bin:/usr/bin:/bin
 ExecStart=${node} ${workdir}/src/daemon/index.js
 Restart=always
@@ -85,7 +85,7 @@ export function buildLaunchdPlist({ node, workdir, stateDir, label = 'com.person
   <array><string>${node}</string><string>${workdir}/src/daemon/index.js</string></array>
   <key>WorkingDirectory</key><string>${workdir}</string>
   <key>EnvironmentVariables</key>
-  <dict><key>PC_CONFIG</key><string>${stateDir}/config.json</string></dict>
+  <dict><key>PERSONAL_CONTEXT_CONFIG</key><string>${stateDir}/config.json</string></dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>${stateDir}/daemon.log</string>

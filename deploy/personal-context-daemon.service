@@ -8,7 +8,7 @@ After=network-online.target
 Type=simple
 WorkingDirectory=%h/Development/Personal-Context
 EnvironmentFile=%h/.dsh/state/personal-context/sources.env
-Environment=PC_CONFIG=%h/.dsh/state/personal-context/config.json
+Environment=PERSONAL_CONTEXT_CONFIG=%h/.dsh/state/personal-context/config.json
 # lark-cli 与 node 装在同一处 bin；systemd 的 PATH 里没有，显式补上
 Environment=PATH=@NODE_BIN@:/usr/local/bin:/usr/bin:/bin
 ExecStart=@NODE@ src/daemon/index.js

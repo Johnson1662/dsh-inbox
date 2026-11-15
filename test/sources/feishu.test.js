@@ -742,13 +742,13 @@ function fakeCli({ version = 'lark-cli version 1.0.96\n', auth }) {
 test('未安装：stderr 中文说明并退出 1', async () => {
   const written = []
   const code = await main({
-    env: { PC_SOURCE_LARK_CLI: '/nonexistent/definitely-no-lark-cli', PC_STATE_DIR: '/tmp/pc-lark-not-installed' },
+    env: { PERSONAL_CONTEXT_SOURCE_LARK_CLI: '/nonexistent/definitely-no-lark-cli', PERSONAL_CONTEXT_STATE_DIR: '/tmp/pc-lark-not-installed' },
     err: { write: line => written.push(line) },
   })
 
   assert.equal(code, 1)
   assert.match(written.join(''), /找不到 lark-cli/)
-  assert.match(written.join(''), /PC_SOURCE_LARK_CLI/)
+  assert.match(written.join(''), /PERSONAL_CONTEXT_SOURCE_LARK_CLI/)
 })
 
 test('未登录：自检拒绝启动，并说清楚怎么登录', async () => {

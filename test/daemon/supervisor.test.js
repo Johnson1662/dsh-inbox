@@ -90,31 +90,31 @@ test('env 映射：stateDir、来源名、camelCase → UPPER_SNAKE', () => {
     { stateDir: '/tmp/state', env: { PATH: '/usr/bin', HOME: '/home/x' } },
   )
 
-  assert.equal(env.PC_STATE_DIR, '/tmp/state')
-  assert.equal(env.PC_SOURCE_NAME, 'telegram')
-  assert.equal(env.PC_SOURCE_INTERVAL_MS, '8000')
-  assert.equal(env.PC_SOURCE_API_ID, '123456')
-  assert.equal(env.PC_SOURCE_API_HASH, 'hash-value')
-  assert.equal(env.PC_SOURCE_SESSION, '~/.dsh/state/tg')
-  assert.equal(env.PC_SOURCE_CHATS, '-1001234,777000')
-  assert.equal(env.PC_SOURCE_BACKFILL, '0')
-  assert.equal(env.PC_SOURCE_ENABLED, '1')
+  assert.equal(env.PERSONAL_CONTEXT_STATE_DIR, '/tmp/state')
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_NAME, 'telegram')
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_INTERVAL_MS, '8000')
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_API_ID, '123456')
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_API_HASH, 'hash-value')
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_SESSION, '~/.dsh/state/tg')
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_CHATS, '-1001234,777000')
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_BACKFILL, '0')
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_ENABLED, '1')
   // null 直接不设，别把 "null" 塞给子进程
-  assert.equal(env.PC_SOURCE_PROXY, undefined)
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_PROXY, undefined)
   // 父进程的变量原样在
   assert.equal(env.PATH, '/usr/bin')
   assert.equal(env.HOME, '/home/x')
 })
 
-test('env 映射：父进程已有的 PC_TELEGRAM_* 不被覆盖，来源名不被配置改掉', () => {
+test('env 映射：父进程已有的 PERSONAL_CONTEXT_TELEGRAM_* 不被覆盖，来源名不被配置改掉', () => {
   const env = sourceEnv(
     'telegram',
     { name: '假的', intervalMs: 5000 },
-    { stateDir: '/tmp/state', env: { PC_TELEGRAM_API_HASH: 'from-parent', PC_SOURCE_NAME: 'stale' } },
+    { stateDir: '/tmp/state', env: { PERSONAL_CONTEXT_TELEGRAM_API_HASH: 'from-parent', PERSONAL_CONTEXT_SOURCE_NAME: 'stale' } },
   )
-  assert.equal(env.PC_TELEGRAM_API_HASH, 'from-parent')
-  assert.equal(env.PC_SOURCE_NAME, 'telegram')
-  assert.equal(env.PC_SOURCE_INTERVAL_MS, '5000')
+  assert.equal(env.PERSONAL_CONTEXT_TELEGRAM_API_HASH, 'from-parent')
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_NAME, 'telegram')
+  assert.equal(env.PERSONAL_CONTEXT_SOURCE_INTERVAL_MS, '5000')
 })
 
 // ------------------------------------------------------------------ 管道
@@ -195,8 +195,8 @@ test('子进程崩了会重启，重启后继续收', async t => {
     join(root, 'flaky.js'),
     [
       "import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'",
-      "const marker = `${process.env.PC_STATE_DIR}/runs`",
-      "mkdirSync(process.env.PC_STATE_DIR, { recursive: true })",
+      "const marker = `${process.env.PERSONAL_CONTEXT_STATE_DIR}/runs`",
+      "mkdirSync(process.env.PERSONAL_CONTEXT_STATE_DIR, { recursive: true })",
       'const runs = existsSync(marker) ? Number(readFileSync(marker, \'utf8\')) : 0',
       'writeFileSync(marker, String(runs + 1))',
       'if (runs === 0) process.exit(7)',
@@ -213,7 +213,7 @@ test('子进程崩了会重启，重启后继续收', async t => {
   assert.equal(state.name, 'flaky')
   assert.equal(state.restarts, 1)
   assert.equal(state.running, true)
-  // 子进程确实拿到了 PC_STATE_DIR 才写得出 runs 文件
+  // 子进程确实拿到了 PERSONAL_CONTEXT_STATE_DIR 才写得出 runs 文件
   assert.equal(readFileSync(join(stateDir, 'runs'), 'utf8'), '2')
 })
 

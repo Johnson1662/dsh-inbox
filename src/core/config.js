@@ -65,40 +65,40 @@ function pick(...values) {
   return undefined
 }
 
-/** 从环境变量读到的覆盖项。命名一律 PC_ 前缀，按 A_B_C 对应层级。 */
+/** 从环境变量读到的覆盖项。命名一律 PERSONAL_CONTEXT_ 前缀，按 A_B_C 对应层级。 */
 export function readEnv(env = process.env) {
   const out = { http: {}, delivery: {}, limits: {}, sources: { telegram: {}, feishu: {} }, credentials: {} }
 
-  out.stateDir = pick(env.PC_STATE_DIR)
-  out.http.listen = pick(env.PC_HTTP_LISTEN)
-  out.http.token = pick(env.PC_HTTP_TOKEN)
+  out.stateDir = pick(env.PERSONAL_CONTEXT_STATE_DIR)
+  out.http.listen = pick(env.PERSONAL_CONTEXT_HTTP_LISTEN)
+  out.http.token = pick(env.PERSONAL_CONTEXT_HTTP_TOKEN)
 
-  out.delivery.sink = pick(env.PC_SINK)
-  out.delivery.intervalMs = int(env.PC_DELIVERY_INTERVAL_MS, 'PC_DELIVERY_INTERVAL_MS')
-  out.delivery.limit = int(env.PC_DELIVERY_LIMIT, 'PC_DELIVERY_LIMIT')
+  out.delivery.sink = pick(env.PERSONAL_CONTEXT_SINK)
+  out.delivery.intervalMs = int(env.PERSONAL_CONTEXT_DELIVERY_INTERVAL_MS, 'PERSONAL_CONTEXT_DELIVERY_INTERVAL_MS')
+  out.delivery.limit = int(env.PERSONAL_CONTEXT_DELIVERY_LIMIT, 'PERSONAL_CONTEXT_DELIVERY_LIMIT')
 
-  out.limits.batchCount = int(env.PC_BATCH_COUNT, 'PC_BATCH_COUNT')
-  out.limits.batchChars = int(env.PC_BATCH_CHARS, 'PC_BATCH_CHARS')
-  out.limits.backlogCount = int(env.PC_BACKLOG_COUNT, 'PC_BACKLOG_COUNT')
-  out.limits.backlogChars = int(env.PC_BACKLOG_CHARS, 'PC_BACKLOG_CHARS')
+  out.limits.batchCount = int(env.PERSONAL_CONTEXT_BATCH_COUNT, 'PERSONAL_CONTEXT_BATCH_COUNT')
+  out.limits.batchChars = int(env.PERSONAL_CONTEXT_BATCH_CHARS, 'PERSONAL_CONTEXT_BATCH_CHARS')
+  out.limits.backlogCount = int(env.PERSONAL_CONTEXT_BACKLOG_COUNT, 'PERSONAL_CONTEXT_BACKLOG_COUNT')
+  out.limits.backlogChars = int(env.PERSONAL_CONTEXT_BACKLOG_CHARS, 'PERSONAL_CONTEXT_BACKLOG_CHARS')
 
-  out.sources.telegram.enabled = bool(env.PC_TELEGRAM_ENABLED, 'PC_TELEGRAM_ENABLED')
-  out.sources.telegram.intervalMs = int(env.PC_TELEGRAM_INTERVAL_MS, 'PC_TELEGRAM_INTERVAL_MS')
-  out.sources.telegram.apiId = pick(env.PC_TELEGRAM_API_ID)
-  out.sources.telegram.apiHash = pick(env.PC_TELEGRAM_API_HASH)
-  out.sources.telegram.session = pick(env.PC_TELEGRAM_SESSION)
-  // 下面三项由 supervisor 变成 PC_SOURCE_PROXY / CHATS / BACKFILL 交给来源进程
-  out.sources.telegram.proxy = pick(env.PC_TELEGRAM_PROXY)
-  out.sources.telegram.chats = list(env.PC_TELEGRAM_CHATS)
-  out.sources.telegram.backfill = count(env.PC_TELEGRAM_BACKFILL, 'PC_TELEGRAM_BACKFILL')
+  out.sources.telegram.enabled = bool(env.PERSONAL_CONTEXT_TELEGRAM_ENABLED, 'PERSONAL_CONTEXT_TELEGRAM_ENABLED')
+  out.sources.telegram.intervalMs = int(env.PERSONAL_CONTEXT_TELEGRAM_INTERVAL_MS, 'PERSONAL_CONTEXT_TELEGRAM_INTERVAL_MS')
+  out.sources.telegram.apiId = pick(env.PERSONAL_CONTEXT_TELEGRAM_API_ID)
+  out.sources.telegram.apiHash = pick(env.PERSONAL_CONTEXT_TELEGRAM_API_HASH)
+  out.sources.telegram.session = pick(env.PERSONAL_CONTEXT_TELEGRAM_SESSION)
+  // 下面三项由 supervisor 变成 PERSONAL_CONTEXT_SOURCE_PROXY / CHATS / BACKFILL 交给来源进程
+  out.sources.telegram.proxy = pick(env.PERSONAL_CONTEXT_TELEGRAM_PROXY)
+  out.sources.telegram.chats = list(env.PERSONAL_CONTEXT_TELEGRAM_CHATS)
+  out.sources.telegram.backfill = count(env.PERSONAL_CONTEXT_TELEGRAM_BACKFILL, 'PERSONAL_CONTEXT_TELEGRAM_BACKFILL')
 
-  out.sources.feishu.enabled = bool(env.PC_FEISHU_ENABLED, 'PC_FEISHU_ENABLED')
-  out.sources.feishu.intervalMs = int(env.PC_FEISHU_INTERVAL_MS, 'PC_FEISHU_INTERVAL_MS')
-  out.sources.feishu.larkCli = pick(env.PC_FEISHU_LARK_CLI)
-  out.sources.feishu.concurrency = int(env.PC_FEISHU_CONCURRENCY, 'PC_FEISHU_CONCURRENCY')
+  out.sources.feishu.enabled = bool(env.PERSONAL_CONTEXT_FEISHU_ENABLED, 'PERSONAL_CONTEXT_FEISHU_ENABLED')
+  out.sources.feishu.intervalMs = int(env.PERSONAL_CONTEXT_FEISHU_INTERVAL_MS, 'PERSONAL_CONTEXT_FEISHU_INTERVAL_MS')
+  out.sources.feishu.larkCli = pick(env.PERSONAL_CONTEXT_FEISHU_LARK_CLI)
+  out.sources.feishu.concurrency = int(env.PERSONAL_CONTEXT_FEISHU_CONCURRENCY, 'PERSONAL_CONTEXT_FEISHU_CONCURRENCY')
 
-  out.credentials.chats = list(env.PC_CREDENTIAL_CHATS)
-  out.credentials.patterns = list(env.PC_CREDENTIAL_PATTERNS)
+  out.credentials.chats = list(env.PERSONAL_CONTEXT_CREDENTIAL_CHATS)
+  out.credentials.patterns = list(env.PERSONAL_CONTEXT_CREDENTIAL_PATTERNS)
 
   return out
 }

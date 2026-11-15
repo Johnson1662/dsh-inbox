@@ -38,6 +38,6 @@
     "@deepseek-ai/dsh-llm": "*"
   },
   "bin": {
-    "pc": "./bin/pc.mjs"
+    "personal-context": "./bin/personal-context.mjs"
   }
 }
