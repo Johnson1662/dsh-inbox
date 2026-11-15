@@ -99,9 +99,9 @@ npm test          # 只要测试
 npm run rot     # eff-u-code，配置在 .fuckucoderc.json（已排除测试与文档）
 ```
 
-**它的函数边界是坏的**：只认顶层函数，嵌套函数的结束位置会被算到最外层作用域的结尾，于是越靠前的内层函数吞掉越多代码。所以榜首那几条先核对真实行数再动手——`record()` 被报 250 行、实际 20 行就是这么来的。Python 那侧更差：`tree-sitter-python.wasm` 没随包发布，直接退成正则。
+**它 2.2.2 起在 npm / npx 下是坏的**（我们提了上游修复 [PR #165](https://github.com/Done-0/fuck-u-code/pull/165)）：wasm 路径被写死成包内 `node_modules`（那是 pnpm 的布局），npm 会把依赖提升，于是语法解析全部失败、**静默退化成正则**，嵌套函数的结束位置被算到外层作用域末尾——`record()` 报 250 行、实际 20 行就是这么来的。分数会系统性偏低（同一个仓库：正则 83.9 / 真 AST 92.0）。
 
-看趋势，不看单条。真要看某个函数，`sed -n 'X,Yp'` 自己数。
+`npm run rot` 暂时指向我们的 fork，PR 合并后换回 npm 版本。**想确认解析是否正常，加 `-v` 看开头有没有 `[WARN] ... falling back to regex parser`**——有就是数字不可信。
 
 ## 踩过的坑（别重踩）
 
