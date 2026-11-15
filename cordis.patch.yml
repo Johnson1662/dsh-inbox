@@ -18,12 +18,8 @@
         feishuIntervalMs: 5000
         routes:
           - sources: ["*"]
-            sink: session-bcba45c8-199d-4f99-8774-bf2b91091466
-        sinks:
-          chief:
-            kind: dsh-session
-            botId: session-bcba45c8-199d-4f99-8774-bf2b91091466
-            sessionId: session-b4d09876-a9a1-47dc-8c3f-9f4633282ada
+            sink: chief
+        sinks: {}
     - id: dsh-personal-context-source-telegram
       name: dsh-personal-context-source-telegram
     - id: dsh-personal-context-source-feishu
