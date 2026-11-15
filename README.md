@@ -184,6 +184,8 @@ if (events.length) {
 - [docs/design.md](docs/design.md) —— 设计与取舍，含每条后续的现状与做法
 - [docs/operations.md](docs/operations.md) —— 凭据、环境变量、命令、排错
 - [docs/adr/](docs/adr/) —— 架构决策记录
+- [CONTRIBUTING.md](CONTRIBUTING.md) —— 加来源、加接收端、质量底线
+- [AGENTS.md](AGENTS.md) —— 在这个仓库里写代码的 agent 读的那份
 
 ## 许可
 

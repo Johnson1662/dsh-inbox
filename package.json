@@ -20,7 +20,8 @@
   },
   "scripts": {
     "test": "node --test 'packages/core/test/**/*.test.js' 'packages/sources/feishu/test/**/*.test.js'",
-    "daemon": "node packages/core/src/daemon/index.js"
+    "daemon": "node packages/core/src/daemon/index.js",
+    "check": "node scripts/check.mjs"
   },
   "license": "MIT"
 }

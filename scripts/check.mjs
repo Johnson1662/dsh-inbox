@@ -1,33 +1,44 @@
 #!/usr/bin/env node
 /**
- * 守恒检查：库里条数 = 待投 + 已投，不存在第三种状态。
- * 用法：node scripts/check.mjs
+ * 提交前的统一检查：语法 + 测试。
+ * 不引第三方 lint——运行时零依赖是底线，也免得贡献者为了跑检查装一堆东西。
  */
-import { DatabaseSync } from 'node:sqlite'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { readdirSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const stateDir = (process.env.PERSONAL_CONTEXT_STATE_DIR ?? '~/.dsh/state/personal-context').replace(/^~/, homedir())
-const db = new DatabaseSync(join(stateDir, 'context.sqlite'))
+const root = join(fileURLToPath(import.meta.url), '..', '..')
+const SKIP = new Set(['node_modules', '.git', '.scratch', 'local-pkgs'])
 
-const states = db.prepare('SELECT state, COUNT(*) AS n FROM events GROUP BY state').all()
-const bySource = db.prepare('SELECT source, state, COUNT(*) AS n FROM events GROUP BY source, state ORDER BY source').all()
-const total = states.reduce((sum, row) => sum + row.n, 0)
-const known = states.filter(row => row.state === 'pending' || row.state === 'delivered')
-const unknown = states.filter(row => row.state !== 'pending' && row.state !== 'delivered')
+function walk(dir, out = []) {
+  for (const name of readdirSync(dir)) {
+    if (SKIP.has(name) || name.startsWith('.')) continue
+    const path = join(dir, name)
+    const stat = statSync(path)
+    if (stat.isDirectory()) walk(path, out)
+    else if (name.endsWith('.js') || name.endsWith('.mjs')) out.push(path)
+  }
+  return out
+}
 
-console.log(`总条数 ${total}`)
-for (const row of states) console.log(`  ${row.state.padEnd(10)} ${row.n}`)
-console.log('按来源：')
-for (const row of bySource) console.log(`  ${row.source.padEnd(12)} ${row.state.padEnd(10)} ${row.n}`)
+const files = walk(root)
+let bad = 0
+for (const file of files) {
+  try {
+    execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' })
+  } catch (error) {
+    bad += 1
+    console.error(`✖ 语法错误：${relative(root, file)}\n${error.stderr?.toString() ?? error}`)
+  }
+}
+console.log(`语法检查：${files.length} 个文件，${bad} 个有问题`)
+if (bad) process.exit(1)
 
-if (unknown.length) {
-  console.error(`✗ 出现第三种状态：${unknown.map(row => `${row.state}=${row.n}`).join(', ')}`)
+try {
+  execFileSync('node', ['--test', 'packages/core/test/**/*.test.js', 'packages/sources/feishu/test/**/*.test.js'], {
+    cwd: root, stdio: 'inherit',
+  })
+} catch {
   process.exit(1)
 }
-const counted = known.reduce((sum, row) => sum + row.n, 0)
-if (counted !== total) {
-  console.error(`✗ 条数不守恒：${counted} != ${total}`)
-  process.exit(1)
-}
-console.log('✓ 条数守恒（只有 pending / delivered 两种状态）')
