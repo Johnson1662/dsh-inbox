@@ -85,7 +85,7 @@
 ## 验证（必须真跑，不许声称）
 
 ```bash
-npm run check     # 语法全量 + 143 个用例
+npm run check     # JS 与 Python 语法全量 + 143 个用例
 npm test          # 只要测试
 ```
 

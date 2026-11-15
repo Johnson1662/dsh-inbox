@@ -20,3 +20,12 @@ jobs:
           node-version: ${{ matrix.node }}
       # 零运行时依赖：不需要 npm install
       - run: npm run check
+
+      # 打包是发布路径，路径改错在这里就该挂，而不是等到装进 DSH
+      - name: Pack
+        run: |
+          bash deploy/pack.sh
+          for pkg in core source-telegram source-feishu; do
+            ls "$HOME/.dsh/local-pkgs/dsh-personal-context-${pkg}-"*.tgz
+          done
+          ls "$HOME/.dsh/local-pkgs/dsh-personal-context-"[0-9]*.tgz

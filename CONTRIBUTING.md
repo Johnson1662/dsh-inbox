@@ -37,7 +37,7 @@ personal-context status
 npm run check
 ```
 
-它会做两件事：全量语法检查、跑所有测试。**没跑过不要开 PR。**
+它做三件事：JS 与 Python 的全量语法检查、跑所有测试、确认 `deploy/pack.sh` 还能打出四个包。**没跑过不要开 PR。**
 
 改了投递或界面，再手动验一遍：真发一条消息，确认它进了会话，且 `personal-context status` 里队列守恒（`待投 + 已投 = 总数`）。
 
