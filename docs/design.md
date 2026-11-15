@@ -341,7 +341,6 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 ## 目录
 
 - 术语表：[GLOSSARY.md](./GLOSSARY.md)
-- v1 接口级规格与验收：[.scratch/v1-ingest-pipeline/spec.md](./.scratch/v1-ingest-pipeline/spec.md)
 - 代码仓库设计（模块、接口、接缝、测试面）：[docs/repo-design.md](./docs/repo-design.md)
 - 架构决策记录：[docs/adr/](./docs/adr/) —— 为什么两个程序、为什么只投 agent、为什么飞书只能轮询、为什么零丢失
 - Agent 工具配置：[AGENTS.md](./AGENTS.md)、[docs/agents/](./docs/agents/)
