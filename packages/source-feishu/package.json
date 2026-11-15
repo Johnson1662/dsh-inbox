@@ -1,6 +1,6 @@
 {
   "name": "dsh-personal-context-source-feishu",
-  "version": "0.7.1",
+  "version": "0.7.3",
   "private": true,
   "type": "module",
   "description": "飞书来源：用 lark-cli 以本人身份轮询会话，把新消息写成信封",

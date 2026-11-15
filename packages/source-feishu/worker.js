@@ -25,9 +25,10 @@
  */
 
 import { spawn } from 'node:child_process'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const SOURCE = 'feishu'
 
@@ -889,7 +890,18 @@ export async function main({ env = process.env, out = process.stdout, err = proc
   return 0
 }
 
-const invokedDirectly = typeof process.argv[1] === 'string' && basename(process.argv[1]) === 'feishu.js'
+// 按"是不是进程入口"判断，不按文件名——文件叫 worker.js 还是 feishu.js 都不该影响启动
+const invokedDirectly =
+  typeof process.argv[1] === 'string' &&
+  (() => {
+    try {
+      return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+    } catch (error) {
+      // 这里静默失败过一次：忘了 import 直接导致进程"正常退出 0"，查了很久
+      process.stderr.write(`[feishu] 启动判断出错：${error?.message ?? error}\n`)
+      return false
+    }
+  })()
 if (invokedDirectly) {
   main()
     .then(code => {
