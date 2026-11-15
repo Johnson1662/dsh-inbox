@@ -21,7 +21,8 @@
   "scripts": {
     "test": "node --test 'packages/core/test/**/*.test.js' 'packages/sources/feishu/test/**/*.test.js'",
     "daemon": "node packages/core/src/daemon/index.js",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "rot": "npx -y -p eff-u-code@2.2.2 fuck-u-code analyze ."
   },
   "license": "MIT"
 }

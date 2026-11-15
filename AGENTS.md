@@ -93,6 +93,16 @@ npm test          # 只要测试
 
 动到打包/安装时看 [CONTRIBUTING.md](CONTRIBUTING.md#装进-dsh)。
 
+## 可选：坏味道扫描
+
+```bash
+npm run rot     # eff-u-code，配置在 .fuckucoderc.json（已排除测试与文档）
+```
+
+**它的函数边界是坏的**：只认顶层函数，嵌套函数的结束位置会被算到最外层作用域的结尾，于是越靠前的内层函数吞掉越多代码。所以榜首那几条先核对真实行数再动手——`record()` 被报 250 行、实际 20 行就是这么来的。Python 那侧更差：`tree-sitter-python.wasm` 没随包发布，直接退成正则。
+
+看趋势，不看单条。真要看某个函数，`sed -n 'X,Yp'` 自己数。
+
 ## 踩过的坑（别重踩）
 
 1. **设置面板的路由不能挂 `/api/` 前缀** —— 那是 DSH Remote RPC 的地盘，GET 通、POST 被掐成 `Failed to fetch`。用 `/personal-context/*`。
