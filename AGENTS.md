@@ -97,12 +97,19 @@ npm test          # 只要测试
 ## 可选：坏味道扫描
 
 ```bash
-npm run rot     # eff-u-code，配置在 .fuckucoderc.json（已排除测试与文档）
+npm run rot     # 配置在 .fuckucoderc.json（已排除测试与文档）
 ```
 
-**它 2.2.2 起在 npm / npx 下是坏的**（我们提了上游修复 [PR #165](https://github.com/Done-0/fuck-u-code/pull/165)）：wasm 路径被写死成包内 `node_modules`（那是 pnpm 的布局），npm 会把依赖提升，于是语法解析全部失败、**静默退化成正则**，嵌套函数的结束位置被算到外层作用域末尾——`record()` 报 250 行、实际 20 行就是这么来的。分数会系统性偏低（同一个仓库：正则 83.9 / 真 AST 92.0）。
+跑的是**我们自己的 fork**：[Johnson1662/fuck-u-code](https://github.com/Johnson1662/fuck-u-code) tag `v2.2.2-fork.1`。上游自 2026-09-07 起没再动过，而它的 2.2.2 在 npm / npx 下是坏的：wasm 路径写死成包内 `node_modules`（那是 pnpm 的布局），npm 会提升依赖 → 语法解析全部 ENOENT → **静默退化成正则**，嵌套函数的结束位置被算到外层作用域末尾（`record()` 报 250 行、实际 20 行）。
 
-`npm run rot` 暂时指向我们的 fork，PR 合并后换回 npm 版本。**想确认解析是否正常，加 `-v` 看开头有没有 `[WARN] ... falling back to regex parser`**——有就是数字不可信。
+fork 里改了两处：
+
+1. 先用模块解析器找 wasm，找不到再回落到嵌套路径（兼容 pnpm）
+2. **降级不再静默**：语法加载失败会立刻告警，并在报告末尾列出受影响的语言
+
+判断结果可不可信：**加 `-v` 看有没有 `falling back to regex parser`**。有就是数字全错。
+
+看趋势，不看单条；真要看某个函数，自己数行数。
 
 ## 踩过的坑（别重踩）
 

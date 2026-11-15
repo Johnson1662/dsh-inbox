@@ -45,7 +45,7 @@ npm run check
 npx -p eff-u-code fuck-u-code analyze .
 ```
 
-它按复杂度、长度、嵌套、重复、错误处理给 0~100 分。注意上游 bug：npm 安装时语法解析会静默退化成正则，嵌套函数的长度被算到外层作用域末尾（详见 [AGENTS.md](AGENTS.md#可选坏味道扫描)）。脚本已指向修好的分支；**运行结果若出现 `falling back to regex parser`，数字一律不可信**。
+它按复杂度、长度、嵌套、重复、错误处理给 0~100 分。跑的是我们维护的 fork（上游停更，且上游版本在 npm/npx 下会静默退化成正则解析，详见 [AGENTS.md](AGENTS.md#可选坏味道扫描)）。**出现 `falling back to regex parser` 就说明数字不可信**。
 
 改了投递或界面，再手动验一遍：真发一条消息，确认它进了会话，且 `personal-context status` 里队列守恒（`待投 + 已投 = 总数`）。
 

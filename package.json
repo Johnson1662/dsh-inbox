@@ -22,7 +22,7 @@
     "test": "node --test 'packages/core/test/**/*.test.js' 'packages/sources/feishu/test/**/*.test.js'",
     "daemon": "node packages/core/src/daemon/index.js",
     "check": "node scripts/check.mjs",
-    "rot": "npx -y -p github:Johnson1662/fuck-u-code#fix/hoisted-wasm-path fuck-u-code analyze ."
+    "rot": "npx -y -p github:Johnson1662/fuck-u-code#v2.2.2-fork.1 fuck-u-code analyze ."
   },
   "license": "MIT"
 }
