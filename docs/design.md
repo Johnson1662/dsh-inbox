@@ -320,9 +320,21 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 
 方向：先做 `status --json` 给脚本用，再把最关键的四项画进设置面板。不做时序数据库。
 
+### 5. 上下文格式
+
+参照 [grapeot/context-infrastructure](https://github.com/grapeot/context-infrastructure) 对 `contexts/` 的分层（`memory` / `daily_records` / `survey_sessions` / `thought_review`），把信封里的 `meta`、`ref` 与 `<stateDir>/blobs/` 的落盘形状整理成能长期积累的结构。
+
+现在 `meta` 只是来源自己的细节原样保留，`ref` 只指向原始件。缺的是一套稳定约定：原始件按日分目录、`meta` 里哪些键是被识别的（会话名、发送者、线程根），以及跨来源能不能按同一套键做检索。这不是急事，但接的源一多，格式不收口就会各写各的。
+
+---
+
+---
+
 ### 明确不做（重申）
 
 回程（outbox 的另一半、给人发通知）、memory、permissions 都不归这层管——它们属于会话与 agent 客户端。管道只负责把事件完整、及时、幂等地送进去。
+
+---
 
 ---
 

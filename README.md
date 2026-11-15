@@ -1,14 +1,28 @@
 # dsh-personal-context
 
-给个人 agent 装一个**常驻的感知层**：外部世界发生的事——群消息、邮件、日程变更、CI 失败——第一时间自己走进它的上下文，不用等人转述。
+> 给个人 agent 装一个**常驻的感知层**：外部世界发生的事——群消息、邮件、日程变更、CI 失败——第一时间自己走进它的上下文，不用等人转述。
 
-```
-任意来源 ──▶ 统一信封 ──▶ 常驻队列 ──▶ 任意 agent 的任意会话
-```
+**核心定位**：这是一条**管道**，不是一个插件。任意来源 → 统一信封 → 常驻队列 → 任意 agent 的任意会话。来源可以随便加，接收端可以随便换，两端各有一个几十行就能实现的契约。
 
-来源可以随便加，接收端可以随便换，两端各有一个几十行就能实现的契约。今天接的是 Telegram 和飞书——那只是最早的两个实现。
+今天接的是 Telegram 和飞书——那是**最早的两个实现**，不是这个项目的边界。
 
 [Node.js](https://nodejs.org) · [MIT](LICENSE)
+
+---
+
+## 快速开始（5 分钟）
+
+需要 Node.js ≥ 22（用了内置的 `node:sqlite`）。
+
+```bash
+git clone <本仓库地址> && cd <仓库目录>
+node packages/core/bin/personal-context.mjs init   # 问凭据 → 装开机自启 → 起服务
+personal-context status                            # 队列与来源状态
+```
+
+然后接上 agent。**目前的接收端实现是 [DSH](https://deepseek.com)**：插件 → 添加插件 → 本地目录 → 选本仓库，装完在它的**设置 → 个人上下文**里打开来源、选收件会话。
+
+换别的 agent 只需实现[下面那个契约](#二接一个-agent)，中枢与所有来源都不用动。凭据怎么拿、环境变量、排错见 [docs/operations.md](docs/operations.md)。
 
 ---
 
@@ -28,18 +42,24 @@
 
 ---
 
-## 能接什么
+## 三层结构
 
-凡是有「新东西出现」的地方都能接。从重到轻：
+**每一层都能单独替换，这是整个设计的目的。**
 
-| 来源 | 接法 | 工作量 |
+```
+来源          telegram   feishu   imap   screen   curl 一条   …随便加
+              ↓ 只输出统一信封，不认识收件人
+中枢          去重入库 → 按路由排队 → 发小票（唯一写者，不认识任何 agent）
+              ↓ HTTP：take / done / retry
+接收端        DSH 插件   你的脚本   别的 agent   …五十行接一个
+```
+
+| 你想干的事 | 改哪一层 | 不用碰 |
 |---|---|---|
-| 邮件、日历、RSS、网页变更、屏幕 OCR | 写一个来源包 | 几十到两百行 |
-| 自家服务 webhook、CI、Git 事件、手机快捷指令 | `POST /v1/event` | **不用写代码** |
-| 别人写好的来源包 | `npm i` 一个包 | **一行** |
-| Telegram、飞书 | 已内置 | 零 |
-
-来源不认识收件人，接收端不认识来源——所以加任何一端，另一端都不用动。
+| 加一路来源 | 写一个来源包 | 中枢、接收端、其他来源 |
+| 让某路事件换一个会话 | 改一行路由配置 | 所有代码 |
+| 换一个 agent 接收 | 换接收端那一层 | 来源、中枢 |
+| 关掉 agent 客户端、重启机器 | 什么都不用做 | 采集照跑，回来再投 |
 
 ---
 
@@ -84,6 +104,8 @@ curl -X POST http://127.0.0.1:7788/v1/event \
   -d '{"source":"manual","at":"2026-11-15T09:00:00+08:00","actor":"other","text":"正文"}'
 ```
 
+> 加来源的写法参照了 [DSH superagent](https://github.com/deepseek-ai/dsh-superagent-prototype) 的 `SourceKind`——它也支持双向回复、鉴权与线程上下文。我们只做单向投递，所以把那份接口砍到只剩声明 + 一个往标准输出写信封的进程。
+
 ### 二、接一个 agent
 
 三个 HTTP 动作，不需要 SDK：
@@ -116,8 +138,6 @@ if (events.length) {
 
 > 为什么不直接读数据库：那等于把表结构和状态机抄进每个适配器，我们改一次 schema 全部适配器一起坏。三个动作覆盖同样的语义，见 [ADR 0006](docs/adr/0006-适配器只认三个动作.md)。
 
-> 加来源的写法参照了 [DSH superagent](https://github.com/deepseek-ai/dsh-superagent-prototype) 的 `SourceKind`——它也支持双向回复、鉴权与线程上下文。我们只做单向投递，所以把那份接口砍到只剩声明 + 一个往标准输出写信封的进程。
-
 ---
 
 ## 三条保证
@@ -128,21 +148,21 @@ if (events.length) {
 
 ---
 
-## 装一下
+## 目录结构
 
-需要 Node.js ≥ 22（用了内置的 `node:sqlite`）。
-
-```bash
-git clone <本仓库地址> && cd <仓库目录>
-node packages/core/bin/personal-context.mjs init     # 问凭据、装开机自启、起服务
-personal-context status                              # 队列与来源状态
 ```
-
-然后接上 agent。**目前的接收端实现是 [DSH](https://deepseek.com)**：插件 → 添加插件 → 本地目录 → 选本仓库，装完在它的**设置 → 个人上下文**里打开来源、选收件会话。
-
-换别的 agent，只需实现上面那个契约，中枢与所有来源都不用动。
-
-凭据、环境变量、命令、排错见 [docs/operations.md](docs/operations.md)。
+.
+├── packages/core/                中枢：信封、队列、投递循环、HTTP、设置面板、命令行
+│   ├── src/core/                 信封校验、SQLite 队列、渲染成一条消息
+│   ├── src/daemon/               常驻进程：收事件、看护来源子进程、跑投递
+│   ├── src/cli/                  init / status / sources / log
+│   └── src/plugin/               接收端：take / done / retry 的第一个实现（DSH）
+├── packages/source-telegram/     来源：Telegram（Python + Telethon）
+├── packages/source-feishu/       来源：飞书（lark-cli，以你本人身份读）
+├── cordis.patch.yml              接收端：DSH 的组合补丁（装三个组件）
+├── deploy/                       打包、systemd 单元、重启脚本
+└── docs/                         设计说明、ADR、运维手册
+```
 
 ---
 
@@ -153,15 +173,16 @@ personal-context status                              # 队列与来源状态
 - **timers** —— agent 给自己设的截止时间，到期变成一条事件回队列（"明早提醒我"）。五原语里唯一还缺的一块。
 - **坏信封进死信区** —— 现在格式不对会被直接拒掉、不入库，零丢失在这里有个口子，应该入库且可见。
 - **sink 注册** —— "同一会话同时只有一个投递方"目前靠约定，没有机制。
+- **上下文格式** —— 参照 [grapeot/context-infrastructure](https://github.com/grapeot/context-infrastructure) 的 `contexts/` 分层，把 `meta`、`ref` 与落盘目录整理成可长期积累的形状。
 - **可观测** —— 队列深度、投递延迟、来源健康，现在只有一个 `status`。
 
 ---
 
 ## 更多
 
-- [docs/design.md](docs/design.md) —— 设计与取舍
+- [docs/design.md](docs/design.md) —— 设计与取舍，含每条后续的现状与做法
+- [docs/operations.md](docs/operations.md) —— 凭据、环境变量、命令、排错
 - [docs/adr/](docs/adr/) —— 架构决策记录
-- 加来源、加接收端都欢迎，两条硬约定见 [CONTRIBUTING](docs/operations.md#参与)：来源进程不依赖本项目与任何 agent 客户端；队列只有一个写者
 
 ## 许可
 
