@@ -24,6 +24,8 @@
 
 **扫描不思考，思考不扫描。** 轮询是一个普通进程，零 token，几秒一次也无所谓；只有真有消息才唤醒 agent。于是成本跟事件数成正比，跟时间无关：一天 10 条消息就花 10 次唤醒，一天 0 条一次都不花——而扫描一直在跑。
 
+这也是 [Anthropic 对 always-on agent 的拆解](https://claude.com/resources/articles/building-always-on-agents)里的第一块原语——**event inbox**。其余四块不在这里：memory 和 permissions 属于会话，outbox 我们只做了一半（往会话里投，不做回程），timers 见[后续](#后续)。
+
 ---
 
 ## 能接什么
@@ -114,6 +116,8 @@ if (events.length) {
 
 > 为什么不直接读数据库：那等于把表结构和状态机抄进每个适配器，我们改一次 schema 全部适配器一起坏。三个动作覆盖同样的语义，见 [ADR 0006](docs/adr/0006-适配器只认三个动作.md)。
 
+> 加来源的写法参照了 [DSH superagent](https://github.com/deepseek-ai/dsh-superagent-prototype) 的 `SourceKind`——它也支持双向回复、鉴权与线程上下文。我们只做单向投递，所以把那份接口砍到只剩声明 + 一个往标准输出写信封的进程。
+
 ---
 
 ## 三条保证
@@ -139,6 +143,17 @@ personal-context status                              # 队列与来源状态
 换别的 agent，只需实现上面那个契约，中枢与所有来源都不用动。
 
 凭据、环境变量、命令、排错见 [docs/operations.md](docs/operations.md)。
+
+---
+
+## 后续
+
+按价值排序，都是补语义、不动架构的：
+
+- **timers** —— agent 给自己设的截止时间，到期变成一条事件回队列（"明早提醒我"）。五原语里唯一还缺的一块。
+- **坏信封进死信区** —— 现在格式不对会被直接拒掉、不入库，零丢失在这里有个口子，应该入库且可见。
+- **sink 注册** —— "同一会话同时只有一个投递方"目前靠约定，没有机制。
+- **可观测** —— 队列深度、投递延迟、来源健康，现在只有一个 `status`。
 
 ---
 

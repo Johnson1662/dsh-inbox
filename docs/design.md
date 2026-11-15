@@ -260,7 +260,6 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 
 凭据落在 `~/.dsh/state/personal-context/sources.env`（0600），systemd 用 `EnvironmentFile` 加载；不进 git、不进设置界面。
 
-
 ## 加一路来源（不动投递）
 
 1. 写 `src/sources/<name>.js` 或 `<name>.py`：从 `PERSONAL_CONTEXT_SOURCE_*` 读配置，往 stdout 写一行一个信封，日志走 stderr。
@@ -288,6 +287,42 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 - 给人发任何通知——系统只对 agent 说话
 - 回查接口（先把“投得进去”跑通）
 - 面板、网页 UI
+
+---
+
+## 后续（已知缺口）
+
+按价值排序。前三条是补语义、不动架构；第四条是新原语。
+
+### 1. timers
+
+[Anthropic 的 always-on agent 拆解](https://claude.com/resources/articles/building-always-on-agents)把 timers 列为五个原语之一，我们没有。它有两种：follow-up（agent 给自己设的截止时间）和 schedule（每天 9 点）。
+
+价值在于：agent 说完「明早提醒我」之后能自己把自己叫醒。**不需要新概念**——到期的 timer 就是一条事件回队列，走现有的去重、路由、投递。
+
+方向：`timers` 表（`due_at`、`sink`、`payload`、`recurrence`）+ 调度循环 + `POST /v1/timer`。调度器只做一件事：扫到期的，转成事件写进队列。
+
+### 2. 坏信封进死信区
+
+现在 `normalize()` 对格式不对的信封返回 `{ error }`，HTTP 回 400，**不入库**。来源写错一个时区，这条就没了——和「零丢失」直接冲突。这是目前唯一的破口。
+
+方向：`rejected` 表，存原始 JSON + 拒绝原因 + 来源 + 时间；`status` 里显示「3 条被拒：invalid_at ×2、invalid_actor ×1」。仍然不投递（它本来就无法投），但要看得见。
+
+### 3. sink 注册
+
+`/v1/take` 接受任意 `sink` 名，不认识就返回空批。「同一会话同时只有一个投递方」现在只有文字约定，没有机制——两个 adapter 配同一个 sink 会互相抢，谁也发现不了。
+
+方向：adapter 启动时 `POST /v1/sink { name, pid }` 注册并续租；`take` 校验；第二个 adapter 抢同一个 sink 时拿到 409。租约到期自动注销，适配器崩了不会锁死。
+
+### 4. 可观测
+
+现在只有一个 `status`。常驻基础设施最怕「它还在跑吗、卡在哪」。缺的是：队列深度随时间、投递延迟（入库 → 投递的 p50/p95）、每路来源的最后成功轮询时间、被拒与重试计数。
+
+方向：先做 `status --json` 给脚本用，再把最关键的四项画进设置面板。不做时序数据库。
+
+### 明确不做（重申）
+
+回程（outbox 的另一半、给人发通知）、memory、permissions 都不归这层管——它们属于会话与 agent 客户端。管道只负责把事件完整、及时、幂等地送进去。
 
 ---
 
