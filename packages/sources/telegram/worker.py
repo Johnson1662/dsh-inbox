@@ -73,46 +73,77 @@ def has_telethon(python):
     return done.returncode == 0
 
 
+def resolve_interpreter(path, seen):
+    """候选路径 → 可执行文件的绝对路径；不可用或已见过就返回 None。
+
+    用 abspath 而不是 realpath 做身份：venv 里的 python3 是指向系统 python 的
+    软链，realpath 会把两个解释器抹成同一个，venv 就永远轮不到。
+    """
+    try:
+        found = os.path.abspath(os.path.expanduser(str(path)))
+    except (OSError, ValueError):
+        return None
+    if found in seen or not os.path.isfile(found) or not os.access(found, os.X_OK):
+        return None
+    seen.add(found)
+    return found
+
+
+def is_venv(dirpath):
+    """认 pyvenv.cfg 而不是目录名：venv 叫什么都有可能（.venv / venv / 项目自定义名）。"""
+    return os.path.exists(os.path.join(dirpath, 'pyvenv.cfg')) or os.path.basename(dirpath) in VENV_DIRS
+
+
+def venv_interpreters(venv_dir, seen):
+    """一个 venv 里能用的解释器，按 PYTHON_NAMES 的顺序。"""
+    for name in PYTHON_NAMES:
+        found = resolve_interpreter(os.path.join(venv_dir, 'bin', name), seen)
+        if found:
+            yield found
+
+
+def find_venvs(root):
+    """在搜索根下找 venv 目录；深度封顶，噪音目录不进。"""
+    base = os.path.expanduser(root)
+    if not os.path.isdir(base):
+        return
+    for dirpath, dirnames, _ in os.walk(base):
+        if dirpath[len(base):].count(os.sep) >= MAX_DEPTH:
+            dirnames[:] = []
+            continue
+        if is_venv(dirpath):
+            dirnames[:] = []
+            yield dirpath
+            continue
+        dirnames[:] = [name for name in dirnames
+                       if name not in SKIP_DIRS and (name in VENV_DIRS or not name.startswith('.'))]
+
+
 def candidate_pythons():
     """按"最可能装过 Telethon"的顺序列出候选解释器。"""
     seen = set()
-
-    def add(path):
-        # 用 abspath 而不是 realpath 做身份：venv 里的 python3 是指向系统 python 的
-        # 软链，realpath 会把两个解释器抹成同一个，venv 就永远轮不到
-        try:
-            found = os.path.abspath(os.path.expanduser(str(path)))
-        except (OSError, ValueError):
-            return
-        if found in seen:
-            return
-        if not os.path.isfile(found) or not os.access(found, os.X_OK):
-            return
-        seen.add(found)
-        return found
-
-    current = add(sys.executable)
+    current = resolve_interpreter(sys.executable, seen)
     if current:
         yield current
     for root in SEARCH_ROOTS:
-        base = os.path.expanduser(root)
-        if not os.path.isdir(base):
+        for venv in find_venvs(root):
+            yield from venv_interpreters(venv, seen)
+
+
+def override_interpreter():
+    """PERSONAL_CONTEXT_SOURCE_PYTHON 显式指定的解释器；没给就是 None。"""
+    raw = os.environ.get('PERSONAL_CONTEXT_SOURCE_PYTHON') or os.environ.get('PERSONAL_CONTEXT_TELEGRAM_PYTHON')
+    return os.path.expanduser(raw) if raw else None
+
+
+def interpreter_with_telethon():
+    """除当前解释器之外，第一个能 import telethon 的候选；没有就是 None。"""
+    for python in candidate_pythons():
+        if os.path.abspath(python) == os.path.abspath(sys.executable):
             continue
-        for dirpath, dirnames, _ in os.walk(base):
-            depth = dirpath[len(base):].count(os.sep)
-            if depth >= MAX_DEPTH:
-                dirnames[:] = []
-                continue
-            dirnames[:] = [name for name in dirnames
-                           if name not in SKIP_DIRS and (name in VENV_DIRS or not name.startswith('.'))]
-            # 认 pyvenv.cfg 而不是目录名：venv 叫什么都有可能（.venv / venv / 项目自定义名）
-            if os.path.exists(os.path.join(dirpath, 'pyvenv.cfg')) or os.path.basename(dirpath) in VENV_DIRS:
-                dirnames[:] = []
-                for name in PYTHON_NAMES:
-                    found = add(os.path.join(dirpath, 'bin', name))
-                    if found:
-                        yield found
-                continue
+        if has_telethon(python):
+            return python
+    return None
 
 
 def ensure_telethon():
@@ -120,24 +151,21 @@ def ensure_telethon():
     if has_telethon(sys.executable):
         return
 
-    override = os.environ.get('PERSONAL_CONTEXT_SOURCE_PYTHON') or os.environ.get('PERSONAL_CONTEXT_TELEGRAM_PYTHON')
+    override = override_interpreter()
     if override:
-        target = os.path.expanduser(override)
-        if not has_telethon(target):
+        if not has_telethon(override):
             die(f'PERSONAL_CONTEXT_SOURCE_PYTHON={override} 里没有 telethon。先 `{override} -m pip install telethon`，或换个解释器。')
-        reexec(target)
+        reexec(override)
 
     # 已经换过一次还不行：别再换，避免 exec 死循环
     if os.environ.get('PERSONAL_CONTEXT_SOURCE_PYTHON_PROBED') == '1':
         die(f'解释器 {sys.executable} 仍然没有 telethon。请 `{sys.executable} -m pip install telethon`。')
 
     log(f'当前解释器 {sys.executable} 没有 telethon，开始找带 telethon 的解释器')
-    for python in candidate_pythons():
-        if os.path.abspath(python) == os.path.abspath(sys.executable):
-            continue
-        if has_telethon(python):
-            log(f'改用 {python} 重新执行')
-            reexec(python)
+    found = interpreter_with_telethon()
+    if found:
+        log(f'改用 {found} 重新执行')
+        reexec(found)
 
     die(
         '找不到装了 telethon 的 Python 解释器。请任选一种办法：\n'
@@ -212,7 +240,8 @@ def parse_proxy(raw):
     return proxy
 
 
-def load_config():
+def require_credentials():
+    """api_id / api_hash / session 三件套：缺一个就点名退出，不猜。"""
     api_id = env('API_ID')
     api_hash = env('API_HASH')
     session = env('SESSION')
@@ -225,26 +254,38 @@ def load_config():
         api_id = int(str(api_id).strip())
     except ValueError:
         die(f'PERSONAL_CONTEXT_SOURCE_API_ID 必须是整数，现在是 {api_id!r}')
+    return api_id, api_hash, session
 
-    session_path = os.path.expanduser(session)
-    if not Path(session_path).suffix:
-        session_path += '.session'
 
-    # supervisor 给的是 PERSONAL_CONTEXT_STATE_DIR；PERSONAL_CONTEXT_SOURCE_STATE_DIR 留给配置里显式写 stateDir 的情况
-    state_dir_raw = env('STATE_DIR') or os.environ.get('PERSONAL_CONTEXT_STATE_DIR') or '~/.dsh/state/personal-context'
-    state_dir = Path(os.path.expanduser(state_dir_raw))
-    chats = [item.strip() for item in (env('CHATS', '') or '').split(',') if item.strip()]
+def session_file(session):
+    """展开 ~ 并补 .session 后缀（Telethon 会自己加，显式补上才好写日志）。"""
+    path = os.path.expanduser(session)
+    return path if Path(path).suffix else path + '.session'
 
+
+def resolve_state_dir():
+    """supervisor 给的是 PERSONAL_CONTEXT_STATE_DIR；PERSONAL_CONTEXT_SOURCE_STATE_DIR 留给配置里显式写 stateDir 的情况。"""
+    raw = env('STATE_DIR') or os.environ.get('PERSONAL_CONTEXT_STATE_DIR') or '~/.dsh/state/personal-context'
+    return Path(os.path.expanduser(raw))
+
+
+def parse_chats(raw):
+    """'a, @b ,c' → ['a', '@b', 'c']；空值就是空列表（= 全部会话）。"""
+    return [item.strip() for item in (raw or '').split(',') if item.strip()]
+
+
+def load_config():
+    api_id, api_hash, session = require_credentials()
     return {
         'api_id': api_id,
         'api_hash': api_hash,
-        'session': session_path,
+        'session': session_file(session),
         'interval': env_int('INTERVAL_MS', 8000, minimum=200),
         'backfill': env_int('BACKFILL', 0),
         'once': env_bool('ONCE', False),
         'proxy': parse_proxy(env('PROXY')),
-        'chats': chats,
-        'state_dir': state_dir,
+        'chats': parse_chats(env('CHATS', '')),
+        'state_dir': resolve_state_dir(),
     }
 
 

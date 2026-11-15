@@ -1,0 +1,19 @@
+{
+  "exclude": [
+    "**/*.test.js",
+    "**/test/**",
+    "docs/**",
+    ".scratch/**",
+    "node_modules/**"
+  ],
+  "concurrency": 8,
+  "output": {
+    "format": "console",
+    "top": 10,
+    "maxIssues": 5,
+    "showDetails": true
+  },
+  "i18n": {
+    "locale": "zh"
+  }
+}

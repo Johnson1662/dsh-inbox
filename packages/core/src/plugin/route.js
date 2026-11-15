@@ -14,36 +14,37 @@ const MAX_BODY = 64 * 1024
 export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}, botStatePath }) {
   const path = configPath(config)
 
+  /** 保存设置：先校验，再落盘，最后热应用。落盘成功但热应用失败要如实报错。 */
+  async function handlePost(req, res) {
+    const body = JSON.parse(await readBody(req))
+    const file = readFile()
+    const { settings, errors } = validate(body?.settings ?? {}, toSettings(file))
+    if (errors.length) return send(res, 400, { ok: false, error: errors.join('；') })
+
+    // 来源 → 目标会话：只收存在的 botId，写进 routes
+    const targets = pickTargets(body?.targets, file, botStatePath)
+    if (targets.error) return send(res, 400, { ok: false, error: targets.error })
+
+    const patch = toLayered(settings)
+    if (targets.routes) patch.routes = targets.routes
+
+    persistConfig(path, patch)
+    log(`设置已更新：${JSON.stringify(settings)}`)
+    try {
+      await apply?.(settings)
+      if (targets.routes) await applyRoutes?.(targets.routes)
+    } catch (error) {
+      return send(res, 500, { ok: false, error: `已保存但热应用失败：${error?.message ?? error}` })
+    }
+    return send(res, 200, { ok: true, data: snapshot(settings) })
+  }
+
   return async function handle(req, res) {
     const blocked = guard(req)
     if (blocked) return send(res, 403, { ok: false, error: blocked })
     try {
       if (req.method === 'GET') return send(res, 200, { ok: true, data: snapshot() })
-      if (req.method === 'POST') {
-        const body = JSON.parse(await readBody(req))
-        const file = readFile()
-        const current = toSettings(file)
-        const { settings, errors } = validate(body?.settings ?? {}, current)
-        if (errors.length) return send(res, 400, { ok: false, error: errors.join('；') })
-
-        // 来源 → 目标会话：只收存在的 botId，写进 routes
-        const targets = pickTargets(body?.targets, file, botStatePath)
-        if (targets.error) return send(res, 400, { ok: false, error: targets.error })
-
-        const patch = toLayered(settings)
-        if (targets.routes) patch.routes = targets.routes
-
-        persistConfig(path, patch)
-        log(`设置已更新：${JSON.stringify(settings)}`)
-        try {
-          await apply?.(settings)
-          if (targets.routes) await applyRoutes?.(targets.routes)
-        } catch (error) {
-          // 落盘成功了但热应用失败：如实告诉面板，别假装成功
-          return send(res, 500, { ok: false, error: `已保存但热应用失败：${error?.message ?? error}` })
-        }
-        return send(res, 200, { ok: true, data: snapshot(settings) })
-      }
+      if (req.method === 'POST') return await handlePost(req, res)
       return send(res, 405, { ok: false, error: '只支持 GET / POST' })
     } catch (error) {
       log(`设置接口出错：${error?.stack ?? error}`)
