@@ -380,12 +380,18 @@ function readWatermarks(path) {
       at,
       messageId: typeof entry?.message_id === 'string' ? entry.message_id : null,
       name: typeof entry?.chat === 'string' ? entry.chat : '',
+      emitted: Array.isArray(entry?.emitted)
+        ? entry.emitted.filter(id => typeof id === 'string').slice(-EMITTED_KEEP)
+        : [],
     }
   }
   return out
 }
 
 const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+/** 每个会话记住最近交出去的信封 id，用来掐掉「水位按分钟、边界那条每轮重交」的循环。 */
+const EMITTED_KEEP = 50
 
 // ---------------------------------------------------------------------------
 // 轮询器：只认识注入的 exec / now / sleep
@@ -461,7 +467,13 @@ export function createPoller({
   function persistWatermarks() {
     const chats = {}
     for (const [chatId, entry] of Object.entries(watermarks)) {
-      chats[chatId] = { chat: entry.name ?? '', at: entry.at, message_id: entry.messageId ?? null }
+      chats[chatId] = {
+        chat: entry.name ?? '',
+        at: entry.at,
+        message_id: entry.messageId ?? null,
+        // 只记哨兵 id，正文不落盘：它的唯一作用是「这条别再交一次」
+        emitted: entry.emitted ?? [],
+      }
     }
     writeJsonAtomic(watermarkPath, { source: SOURCE, version: 1, updated_at: stamps(), chats })
   }
@@ -584,6 +596,9 @@ export function createPoller({
     let newest = startAt
     let newestId = known?.messageId ?? null
     let newestEpoch = Date.parse(startAt)
+    // 水位只到分钟，边界那条每分钟都会被重新取到；记住已交过的 id，避免无限重交
+    const alreadyEmitted = new Set(known?.emitted ?? [])
+    const emittedNow = []
 
     for (const message of messages) {
       const envelope = toEnvelope({ message, chat, offsetMinutes: offset, selfId })
@@ -595,7 +610,9 @@ export function createPoller({
       // 同一轮内的重复（分页重叠、水位重合）只交一次；跨轮的重复靠 id 幂等
       if (seen.has(envelope.id)) continue
       seen.add(envelope.id)
+      if (alreadyEmitted.has(envelope.id)) continue
       emit(envelope)
+      emittedNow.push(envelope.id)
       stats.events += 1
 
       const epoch = Date.parse(envelope.at)
@@ -606,8 +623,11 @@ export function createPoller({
       }
     }
 
-    if (!known || newest !== known.at || newestId !== (known.messageId ?? null)) {
-      watermarks[chat.chatId] = { at: newest, messageId: newestId, name: chat.name }
+    const emitted = [...(known?.emitted ?? []), ...emittedNow].slice(-EMITTED_KEEP)
+    const unchanged =
+      known && newest === known.at && newestId === (known.messageId ?? null) && emitted.length === (known.emitted ?? []).length
+    if (!unchanged) {
+      watermarks[chat.chatId] = { at: newest, messageId: newestId, name: chat.name, emitted }
       dirty = true
     }
   }

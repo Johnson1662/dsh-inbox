@@ -433,7 +433,12 @@ test('水位按会话存到 watermarks/feishu.json，下一轮从水位往后取
   assert.equal(saved.chats.oc_a.at, '2026-11-15T08:58:00+08:00')
   assert.equal(saved.chats.oc_a.message_id, 'om_1')
   assert.deepEqual(ctx.poller.watermarks(), {
-    oc_a: { at: '2026-11-15T08:58:00+08:00', messageId: 'om_1', name: '项目群' },
+    oc_a: {
+      at: '2026-11-15T08:58:00+08:00',
+      messageId: 'om_1',
+      name: '项目群',
+      emitted: ['feishu:oc_a:om_1'],
+    },
   })
 
   await ctx.poller.pollOnce()
@@ -481,10 +486,11 @@ test('新消息让水位继续前进', async t => {
   await ctx.poller.pollOnce()
 
   assert.equal(readJson(ctx.watermarkFile).chats.oc_a.at, '2026-11-15T09:03:00+08:00')
-  assert.deepEqual(ctx.emitted.map(envelope => envelope.id), ['feishu:oc_a:om_1', 'feishu:oc_a:om_1', 'feishu:oc_a:om_2'])
+  // 第二轮又把 om_1 取回来了（水位按分钟），但它已经交过，不再重交
+  assert.deepEqual(ctx.emitted.map(envelope => envelope.id), ['feishu:oc_a:om_1', 'feishu:oc_a:om_2'])
 })
 
-test('同一条消息被两轮取到：id 稳定，下游按 id 幂等', async t => {
+test('同一条消息连续多轮取到：只交一次，不无限重交', async t => {
   const same = message('om_same', 'oc_a', '2026-11-15 08:59', '只发了一次')
   const fake = createFakeLark({
     chatPages: [{ chats: [chat('oc_a', '项目群')] }],
@@ -492,12 +498,14 @@ test('同一条消息被两轮取到：id 稳定，下游按 id 幂等', async t
   })
   const ctx = createTestPoller(t, { fake })
 
-  await ctx.poller.pollOnce()
-  await ctx.poller.pollOnce()
+  // 线上真实症状：这个会话一直没新消息，结果每 7 秒重交同一条，跑了三小时
+  for (let round = 0; round < 10; round++) await ctx.poller.pollOnce()
 
-  // 重采会再交一次（水位按分钟精度，同一分钟会重合），但 id 一模一样：库里只有一行
-  assert.equal(ctx.emitted.length, 2)
-  assert.deepEqual([...new Set(ctx.emitted.map(envelope => envelope.id))], ['feishu:oc_a:om_same'])
+  assert.equal(ctx.emitted.length, 1)
+  assert.deepEqual(ctx.emitted.map(envelope => envelope.id), ['feishu:oc_a:om_same'])
+  // 哨兵只在内存与水位文件里，正文不落盘
+  const saved = readJson(ctx.watermarkFile)
+  assert.deepEqual(saved.chats.oc_a.emitted, ['feishu:oc_a:om_same'])
   assert.equal(new Set(ctx.emitted.map(envelope => JSON.stringify(envelope))).size, 1)
 })
 
