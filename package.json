@@ -6,7 +6,8 @@
   "files": [
     "cordis.patch.yml",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "packages"
   ],
   "dsh": {
     "bundle": {
