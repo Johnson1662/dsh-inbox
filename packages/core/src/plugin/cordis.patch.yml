@@ -1,7 +1,7 @@
-# 核心组件的默认配置。壳包 dsh-personal-context 会把它插进组合里。
+# 核心组件的默认配置。壳包 dsh-inbox 会把它插进组合里。
 - insert:
-    - id: dsh-personal-context-core
-      name: dsh-personal-context-core
+    - id: dsh-inbox-core
+      name: dsh-inbox-core
       config:
         enabled: true
         stateDir: ~/.dsh/state/personal-context

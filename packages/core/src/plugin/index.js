@@ -7,7 +7,7 @@ import { createSettingsRoute } from './route.js'
 import { toLayered, toSettings } from './settings.js'
 
 export { Config } from './config-schema.js'
-export const name = 'dsh-personal-context'
+export const name = 'dsh-inbox'
 export const inject = ['agents', 'sessionPersistence', 'webServer']
 
 /**

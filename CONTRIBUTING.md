@@ -69,7 +69,7 @@ npx -p eff-u-code fuck-u-code analyze .
 
 ```json
 {
-  "name": "dsh-personal-context-source-imap",
+  "name": "dsh-inbox-source-imap",
   "version": "0.0.0",
   "files": ["worker.py", "index.js", "package.json"],
   "dsh": {
@@ -92,7 +92,7 @@ npx -p eff-u-code fuck-u-code analyze .
 **2. 写 `index.js`**（宿主半端，只登记，不采集）：
 
 ```js
-export const name = 'dsh-personal-context-source-imap'
+export const name = 'dsh-inbox-source-imap'
 export function apply(ctx) {
   ctx.get('personalContext')?.registerSource({ name: 'imap', label: '邮箱', runtime: 'python', entry: 'worker.py' })
 }

@@ -1,4 +1,4 @@
-# dsh-personal-context
+# dsh-inbox
 
 > 给个人 agent 装一个**常驻的感知层**：外部世界发生的事——群消息、邮件、日程变更、CI 失败——第一时间自己走进它的上下文，不用等人转述。
 
@@ -71,7 +71,7 @@ personal-context status                            # 队列与来源状态
 
 ```json
 {
-  "name": "dsh-personal-context-source-imap",
+  "name": "dsh-inbox-source-imap",
   "dsh": {
     "source": {
       "name": "imap",

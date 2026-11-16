@@ -1,6 +1,6 @@
 ;(() => {
 /**
- * dsh-personal-context —— 浏览器半端：设置页里的「个人上下文」面板。
+ * dsh-inbox —— 浏览器半端：设置页里的「个人上下文」面板。
  *
  * DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为），
  * 面板必须由插件自己注册进 `settings.section`。
@@ -14,11 +14,11 @@ const loader =
   typeof window !== 'undefined' && window.__ModuleLoader__ && typeof window.__ModuleLoader__.load === 'function'
     ? window.__ModuleLoader__
     : (() => {
-        throw new Error('[dsh-personal-context] 需要 DSH ≥ 0.2.0-rc.2（宿主没有 window.__ModuleLoader__），请升级 DSH')
+        throw new Error('[dsh-inbox] 需要 DSH ≥ 0.2.0-rc.2（宿主没有 window.__ModuleLoader__），请升级 DSH')
       })()
 
 loader.load({
-  id: 'dsh-personal-context-core',
+  id: 'dsh-inbox-core',
   factory: require => {
     const React = require('react')
     const h = React.createElement
@@ -248,10 +248,10 @@ loader.load({
       inject: ['slots'],
       apply(ctx) {
         const style = document.createElement('style')
-        style.setAttribute('data-plugin-css', 'dsh-personal-context')
+        style.setAttribute('data-plugin-css', 'dsh-inbox')
         style.textContent = CSS
         document.head.appendChild(style)
-        if (typeof ctx.effect === 'function') ctx.effect(() => () => style.remove(), 'dsh-personal-context: 设置面板样式')
+        if (typeof ctx.effect === 'function') ctx.effect(() => () => style.remove(), 'dsh-inbox: 设置面板样式')
 
         const slots = (typeof ctx.get === 'function' ? ctx.get('slots') : undefined) || ctx.slots
         if (!slots) return

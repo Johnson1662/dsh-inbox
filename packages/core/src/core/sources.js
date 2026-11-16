@@ -1,7 +1,7 @@
 /**
  * 来源包的发现：不再写死 `src/sources/<name>.js`，而是认一份声明。
  *
- * 约定：装了 `dsh-personal-context-source-*` 这类包之后，它的 package.json 里写着
+ * 约定：装了 `dsh-inbox-source-*` 这类包之后，它的 package.json 里写着
  *   "dsh": { "source": { "name": "telegram", "runtime": "python", "entry": "worker.py", "fields": [...] } }
  * 守护进程只管按 runtime + entry 起进程，不认识具体来源。
  *

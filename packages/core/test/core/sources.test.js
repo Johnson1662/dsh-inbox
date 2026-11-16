@@ -14,12 +14,12 @@ function pkg(dir, name, source, extra = {}) {
 
 test('扫描 node_modules 里的来源声明', () => {
   const dir = mkdtempSync(join(tmpdir(), 'pc-src-'))
-  const telegramDir = pkg(dir, 'dsh-personal-context-source-telegram', {
+  const telegramDir = pkg(dir, 'dsh-inbox-source-telegram', {
     name: 'telegram', label: 'Telegram', runtime: 'python', entry: 'worker.py',
     fields: [{ key: 'intervalMs', type: 'number', default: 8000 }],
   })
   writeFileSync(join(telegramDir, 'worker.py'), 'print()')
-  pkg(dir, 'dsh-personal-context-source-imap', { name: 'imap', runtime: 'node', entry: 'worker.js' })
+  pkg(dir, 'dsh-inbox-source-imap', { name: 'imap', runtime: 'node', entry: 'worker.js' })
   pkg(dir, 'some-other-plugin', {})                    // 没有 dsh.source
   mkdirSync(join(dir, '.bin'))
 

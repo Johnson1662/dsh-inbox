@@ -7,7 +7,7 @@
  * 白名单走环境变量 PERSONAL_CONTEXT_SOURCE_CHATS（和 Telegram 那路一致），
  * 因为面板目前只认 boolean / number / target 三种控件。
  */
-export const name = 'dsh-personal-context-source-wx'
+export const name = 'dsh-inbox-source-wx'
 
 export function apply(ctx) {
   const hub = typeof ctx.get === 'function' ? ctx.get('personalContext') : undefined

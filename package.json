@@ -1,6 +1,6 @@
 {
-  "name": "dsh-personal-context",
-  "version": "0.7.10",
+  "name": "dsh-inbox",
+  "version": "0.8.0",
   "type": "module",
   "description": "个人上下文：各来源的消息收进来，投进指定的 agent 会话",
   "files": [
@@ -14,10 +14,10 @@
     }
   },
   "dependencies": {
-    "dsh-personal-context-core": "file:./packages/core",
-    "dsh-personal-context-source-telegram": "file:./packages/sources/telegram",
-    "dsh-personal-context-source-feishu": "file:./packages/sources/feishu",
-    "dsh-personal-context-source-wx": "file:./packages/sources/wx"
+    "dsh-inbox-core": "file:./packages/core",
+    "dsh-inbox-source-telegram": "file:./packages/sources/telegram",
+    "dsh-inbox-source-feishu": "file:./packages/sources/feishu",
+    "dsh-inbox-source-wx": "file:./packages/sources/wx"
   },
   "scripts": {
     "test": "node --test 'packages/core/test/**/*.test.js' 'packages/sources/feishu/test/**/*.test.js' 'packages/sources/wx/test/**/*.test.js'",

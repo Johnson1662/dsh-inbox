@@ -28,13 +28,13 @@ tmp=$(mktemp -d)
 cp "$root/cordis.patch.yml" "$tmp/"
 jq --arg pkgs "$pkgs" '
   .dependencies = {
-    "dsh-personal-context-core": ("file:" + $pkgs + "/dsh-personal-context-core-" + .version + ".tgz"),
-    "dsh-personal-context-source-telegram": ("file:" + $pkgs + "/dsh-personal-context-source-telegram-" + .version + ".tgz"),
-    "dsh-personal-context-source-feishu": ("file:" + $pkgs + "/dsh-personal-context-source-feishu-" + .version + ".tgz"),
-    "dsh-personal-context-source-wx": ("file:" + $pkgs + "/dsh-personal-context-source-wx-" + .version + ".tgz")
+    "dsh-inbox-core": ("file:" + $pkgs + "/dsh-inbox-core-" + .version + ".tgz"),
+    "dsh-inbox-source-telegram": ("file:" + $pkgs + "/dsh-inbox-source-telegram-" + .version + ".tgz"),
+    "dsh-inbox-source-feishu": ("file:" + $pkgs + "/dsh-inbox-source-feishu-" + .version + ".tgz"),
+    "dsh-inbox-source-wx": ("file:" + $pkgs + "/dsh-inbox-source-wx-" + .version + ".tgz")
   }' "$root/package.json" > "$tmp/package.json"
 ( cd "$tmp" && npm pack --silent >/dev/null )
 tgz=$(ls -t "$tmp"/*.tgz | head -1)
 cp "$tgz" "$pkgs/$(basename "$tgz")"
 rm -rf "$tmp"
-echo "  dsh-personal-context → $pkgs/$(basename "$tgz")"
+echo "  dsh-inbox → $pkgs/$(basename "$tgz")"

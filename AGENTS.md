@@ -42,14 +42,14 @@
 
 1. `packages/sources/<name>/` 下建 `package.json`：
    ```json
-   { "name": "dsh-personal-context-source-<name>",
+   { "name": "dsh-inbox-source-<name>",
      "files": ["worker.py", "index.js", "package.json"],
      "dsh": { "source": { "name": "<name>", "label": "…", "runtime": "python|node",
        "entry": "worker.py", "fields": [{ "key": "enabled", "type": "boolean", "default": false }] } } }
    ```
 2. `index.js`（宿主半端，什么都不采集，只登记）：
    ```js
-   export const name = 'dsh-personal-context-source-<name>'
+   export const name = 'dsh-inbox-source-<name>'
    export function apply(ctx) {
      ctx.get('personalContext')?.registerSource({ name: '<name>', label: '…', runtime: 'python', entry: 'worker.py' })
    }
