@@ -6,7 +6,7 @@
  *
  * 不变式：
  *  - 一行 stdout = 一个信封；坏行记日志丢掉，绝不中断后续行
- *  - 非零退出或异常 → 退避重启；正常退出（0）不重启；SIGTERM 之后不再重启
+ *  - 除显式 stop 外，任何退出（含退出码 0）→ 退避重启；SIGTERM 之后不再重启
  *  - 父进程已有的 PERSONAL_CONTEXT_TELEGRAM_* 之类环境变量原样透传，只往上加 PERSONAL_CONTEXT_SOURCE_*
  */
 
@@ -252,10 +252,10 @@ export function createSupervisor({
         log(`${rec.name}: 已退出（${signal ?? code}）`)
         return
       }
-      if (code === 0) {
-        log(`${rec.name}: 正常退出，不重启`)
-        return
-      }
+      // [2026-11-16]-[退出码 0 不等于「干完了」：来源 worker 都是常驻轮询器，自己退出
+      // （读不到配置、上游把连接关了、被 kill 前先优雅收尾）都算掉线。早先这里把 0 当
+      // 正常结束不重启，采集会静默中断，只能靠改配置触发 reconcile 才拉起来。
+      // 除显式 stop 外，任何退出都按退避重启。]
       scheduleRestart(rec, signal ? `被 ${signal} 终止` : `退出码 ${code}`)
     })
   }

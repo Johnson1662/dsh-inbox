@@ -217,6 +217,38 @@ test('子进程崩了会重启，重启后继续收', async t => {
   assert.equal(readFileSync(join(stateDir, 'runs'), 'utf8'), '2')
 })
 
+test('退出码 0 也按退避重启，不当作干完了', async t => {
+  const { root, stateDir, log, lines } = workspace(t)
+  const received = []
+  const supervisor = createSupervisor({ root, stateDir, log, restartDelayMs: 20, ingest: item => received.push(item) })
+  t.after(() => supervisor.stopAll())
+
+  // 第一次干净退出（exit 0）；第二次吐出消息后常驻
+  writeFileSync(
+    join(root, 'finisher.js'),
+    [
+      "import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'",
+      "const marker = `${process.env.PERSONAL_CONTEXT_STATE_DIR}/runs0`",
+      "mkdirSync(process.env.PERSONAL_CONTEXT_STATE_DIR, { recursive: true })",
+      'const runs = existsSync(marker) ? Number(readFileSync(marker, \'utf8\')) : 0',
+      'writeFileSync(marker, String(runs + 1))',
+      'if (runs === 0) process.exit(0)',
+      `console.log(JSON.stringify(${JSON.stringify(envelope('telegram:-1001234:9'))}))`,
+      'setInterval(() => {}, 1000)',
+    ].join('\n'),
+    'utf8',
+  )
+
+  supervisor.start('finisher', {})
+  await until(() => received.length === 1, { describe: 'exit 0 之后被拉起并收到消息', lines })
+
+  const [state] = supervisor.status()
+  assert.equal(state.running, true)
+  assert.equal(state.restarts, 1)
+  assert.ok(lines.some(line => line.includes('退出码 0') && line.includes('后重启')))
+  assert.equal(readFileSync(join(stateDir, 'runs0'), 'utf8'), '2')
+})
+
 test('SIGTERM 之后不再重启，也不会再收新东西', async t => {
   const { root, stateDir, log, lines } = workspace(t)
   const received = []
