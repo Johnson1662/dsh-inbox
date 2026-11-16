@@ -60,9 +60,24 @@ loader.load({
   display:flex;flex-direction:column;gap:1px;min-width:0;
   color:var(--dsw-alias-label-primary);
 }
-[data-pc-hint]{
+[data-pc-picker]{display:flex;flex-direction:column;gap:6px;align-items:flex-end;max-width:420px;}
+[data-pc-chips]{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}
+[data-pc-chip]{
+  display:inline-flex;align-items:center;gap:6px;
   font:var(--dsw-font-xs-13-font-weight) var(--dsw-font-xs-13-font-size)/var(--dsw-font-xs-13-line-height) var(--dsw-font-xs-13-font-family);
-  color:var(--dsw-alias-label-caption);
+  color:var(--dsw-alias-label-primary);
+  background:var(--dsw-alias-bg-l2);border:1px solid var(--dsw-alias-border-l2);
+  border-radius:999px;padding:2px 4px 2px 10px;max-width:100%;
+}
+[data-pc-chip] span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+[data-pc-chip-x]{
+  border:none;background:transparent;cursor:pointer;padding:0 4px;
+  color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1;
+}
+[data-pc-chip-x]:hover{color:var(--dsw-alias-label-error);}
+[data-pc-empty]{
+  font:var(--dsw-font-xs-13-font-weight) var(--dsw-font-xs-13-font-size)/var(--dsw-font-xs-13-line-height) var(--dsw-font-xs-13-font-family);
+  color:var(--dsw-alias-label-quaternary);
 }
 [data-pc-input],[data-pc-select]{
   font:inherit;color:var(--dsw-alias-label-primary);
@@ -107,10 +122,6 @@ loader.load({
   font:var(--dsw-font-xs-13-font-weight) var(--dsw-font-xs-13-font-size)/var(--dsw-font-xs-13-line-height) var(--dsw-font-xs-13-font-family);
   color:var(--dsw-alias-state-success-primary);
 }
-[data-pc-note]{
-  font:var(--dsw-font-xs-13-font-weight) var(--dsw-font-xs-13-font-size)/var(--dsw-font-xs-13-line-height) var(--dsw-font-xs-13-font-family);
-  color:var(--dsw-alias-label-quaternary);
-}
 `
 
     async function request(path, init) {
@@ -136,49 +147,90 @@ loader.load({
       return body.data ?? body
     }
 
-    function Row({ label, hint, children }) {
+    function Row({ label, children }) {
       return h('div', { 'data-pc-row': '' },
-        h('div', { 'data-pc-label': '' },
-          h('span', null, label),
-          hint ? h('span', { 'data-pc-hint': '' }, hint) : null),
+        h('div', { 'data-pc-label': '' }, h('span', null, label)),
         children)
     }
 
-    function Item({ item, settings, targets, onChange, onTarget, disabled }) {
+    /**
+     * 白名单之类别让用户填 username：来源已经把「名字 ↔ username」给过来了，
+     * 面板只画名字，提交的仍是能用的 username。
+     */
+    function Picker({ item, settings, choices, disabled, onChange }) {
+      const selected = String(settings[item.key] ?? '').split(',').map(value => value.trim()).filter(Boolean)
+      const nameOf = value => choices.find(choice => choice.value === value)?.label ?? value
+      const remaining = choices.filter(choice => !selected.includes(choice.value))
+      // 按 group 收拢成 optgroup，保留后端给的顺序（群聊在前）
+      const buckets = []
+      for (const choice of remaining) {
+        const group = choice.group ?? ''
+        const last = buckets[buckets.length - 1]
+        if (last && last.group === group) last.items.push(choice)
+        else if (!group) buckets.push({ group: '', items: [choice] })
+        else {
+          const existing = buckets.find(bucket => bucket.group === group)
+          if (existing) existing.items.push(choice)
+          else buckets.push({ group, items: [choice] })
+        }
+      }
+      const commit = values => onChange(item.key, values.join(','))
+      return h(Row, { label: item.label },
+        h('div', { 'data-pc-picker': '' },
+          h('div', { 'data-pc-chips': '' },
+            selected.length
+              ? selected.map(value => h('span', { 'data-pc-chip': '', key: value },
+                  h('span', null, nameOf(value)),
+                  h('button', {
+                    'data-pc-chip-x': '', type: 'button', title: '移除', disabled,
+                    onClick: () => commit(selected.filter(other => other !== value)),
+                  }, '×')))
+              : h('span', { 'data-pc-empty': '' }, '未选择')),
+          h('select', {
+            'data-pc-select': '', value: '', disabled: disabled || !remaining.length,
+            onChange: event => {
+              const picked = event.target.value
+              event.target.value = ''
+              if (picked && !selected.includes(picked)) commit([...selected, picked])
+            },
+          },
+          h('option', { value: '' }, !choices.length ? '会话列表读不到，等一下再试' : remaining.length ? '添加…' : '没有更多可选项'),
+          buckets.map(bucket => bucket.group
+            ? h('optgroup', { key: bucket.group, label: bucket.group },
+                bucket.items.map(choice => h('option', { key: choice.value, value: choice.value }, choice.label)))
+            : bucket.items.map(choice => h('option', { key: choice.value, value: choice.value }, choice.label))))))
+    }
+
+    function Item({ item, settings, targets, choices, onChange, onTarget, disabled }) {
       if (item.kind === 'boolean') {
-        return h(Row, { label: item.label, hint: item.hint },
+        return h(Row, { label: item.label },
           h('input', {
             type: 'checkbox', checked: !!settings[item.key], disabled,
             onChange: event => onChange(item.key, event.target.checked),
           }))
       }
       if (item.kind === 'number') {
-        return h(Row, { label: item.label, hint: item.hint },
+        return h(Row, { label: item.label },
           h('input', {
             'data-pc-input': '', type: 'number', value: String(settings[item.key] ?? ''),
             min: item.min, max: item.max, step: item.step, disabled,
             onChange: event => onChange(item.key, Number(event.target.value)),
           }))
       }
-      if (item.kind === 'text' || item.kind === 'list') {
-        // list 就是一行逗号分隔；多行的话用 textarea，避免长白名单溢出
-        const long = item.kind === 'list' && String(settings[item.key] ?? '').length > 60
-        return h(Row, { label: item.label, hint: item.hint },
-          long
-            ? h('textarea', {
-                'data-pc-input': '', rows: 3, value: String(settings[item.key] ?? ''), disabled,
-                placeholder: item.placeholder ?? '',
-                onChange: event => onChange(item.key, event.target.value),
-              })
-            : h('input', {
-                'data-pc-input': '', type: 'text', value: String(settings[item.key] ?? ''), disabled,
-                placeholder: item.placeholder ?? '',
-                onChange: event => onChange(item.key, event.target.value),
-              }))
+      if ((item.kind === 'list' || item.kind === 'text') && item.choicesKey) {
+        return h(Picker, { item, settings, choices, disabled, onChange })
+      }
+      if (item.kind === 'list' || item.kind === 'text') {
+        return h(Row, { label: item.label },
+          h('input', {
+            'data-pc-input': '', type: 'text', value: String(settings[item.key] ?? ''),
+            placeholder: item.placeholder ?? '', disabled,
+            onChange: event => onChange(item.key, event.target.value),
+          }))
       }
       if (item.kind === 'target') {
         const source = String(item.key).replace(/^target:/, '')
-        return h(Row, { label: item.label, hint: item.hint },
+        return h(Row, { label: item.label },
           h('select', {
             'data-pc-select': '', value: targets[source] ?? '', disabled,
             onChange: event => onTarget(source, event.target.value),
@@ -189,75 +241,122 @@ loader.load({
       return null
     }
 
+    const SAVE_DELAY_MS = 700
+    const REFRESH_MS = 15000
+
+    /**
+     * 没有保存按钮：改完就存（停顿 0.7 秒），后台每 15 秒自己取一次最新值。
+     * 正在改的时候不刷新，免得把输入冲掉。
+     */
     function Panel() {
       const [data, setData] = React.useState(null)
       const [settings, setSettings] = React.useState(null)
       const [targets, setTargets] = React.useState({})
       const [error, setError] = React.useState('')
-      const [msg, setMsg] = React.useState('')
-      const [busy, setBusy] = React.useState(false)
+      const [status, setStatus] = React.useState('idle')
+
+      const latest = React.useRef({ settings: null, targets: {}, touched: {} })
+      const editing = React.useRef(false)
+      const timer = React.useRef(null)
+      const flash = React.useRef(null)
 
       const adopt = next => {
         setData(next)
         setSettings(next.settings)
+        latest.current = { settings: next.settings, targets: { ...(next.targets?.current ?? {}) }, touched: {} }
         setTargets({ ...(next.targets?.current ?? {}) })
       }
 
       const load = React.useCallback(() => {
+        if (editing.current) return
         request('/config')
-          .then(next => { adopt(next); setError('') })
+          .then(next => {
+            if (editing.current) return
+            adopt(next)
+            setError('')
+          })
           .catch(err => setError(err.message))
       }, [])
-      React.useEffect(load, [load])
 
-      const change = (key, value) => setSettings(prev => ({ ...prev, [key]: value }))
-      const changeTarget = (source, value) => setTargets(prev => ({ ...prev, [source]: value }))
+      React.useEffect(() => {
+        load()
+        const id = setInterval(load, REFRESH_MS)
+        return () => { clearInterval(id); clearTimeout(timer.current); clearTimeout(flash.current) }
+      }, [load])
 
-      const save = async () => {
-        setBusy(true); setMsg(''); setError('')
+      const flush = React.useCallback(async () => {
+        const payload = { settings: latest.current.settings }
+        if (Object.keys(latest.current.touched).length) payload.targets = latest.current.targets
+        setStatus('saving')
+        setError('')
         try {
           const next = await request('/config', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ settings, targets }),
+            body: JSON.stringify(payload),
           })
           adopt(next)
-          setMsg('已保存')
+          editing.current = false
+          setStatus('saved')
+          clearTimeout(flash.current)
+          flash.current = setTimeout(() => setStatus(current => (current === 'saved' ? 'idle' : current)), 1600)
         } catch (err) {
+          // 存失败就把编辑状态留着：自动刷新不能拿服务端的旧值盖掉用户刚改的东西
+          setStatus('error')
           setError(err.message)
-        } finally {
-          setBusy(false)
         }
+      }, [])
+
+      const schedule = () => {
+        editing.current = true
+        clearTimeout(timer.current)
+        timer.current = setTimeout(flush, SAVE_DELAY_MS)
+      }
+
+      const change = (key, value) => {
+        setSettings(prev => {
+          const next = { ...prev, [key]: value }
+          latest.current.settings = next
+          return next
+        })
+        schedule()
+      }
+
+      const changeTarget = (source, value) => {
+        setTargets(prev => {
+          const next = { ...prev, [source]: value }
+          latest.current.targets = next
+          return next
+        })
+        latest.current.touched[source] = true
+        schedule()
       }
 
       if (error && !data) {
-        return h('div', { 'data-pc': '' },
-          h('div', { 'data-pc-msg': 'fail' }, error),
-          h('button', { 'data-pc-btn': 'ghost', onClick: load }, '重试'))
+        return h('div', { 'data-pc': '' }, h('div', { 'data-pc-msg': 'fail' }, error))
       }
       if (!data || !settings) return h('div', { 'data-pc': '' }, '正在读取设置…')
 
+      const choicesOf = item => (item.choicesKey ? data.choices?.[item.choicesKey] ?? [] : [])
       const groups = data.groups ?? []
       return h('div', { 'data-pc': '' },
         groups.map(group =>
           h('div', { 'data-pc-group': '', key: group.id ?? group.title },
             h('div', { 'data-pc-group-title': '' }, group.title),
-            group.note ? h('div', { 'data-pc-group-note': '' }, group.note) : null,
             group.items.map(item => h(Item, {
               key: item.key,
               item,
               settings,
               targets,
-              disabled: busy,
+              choices: choicesOf(item),
+              disabled: false,
               onChange: change,
               onTarget: changeTarget,
             })))),
         h('div', { 'data-pc-foot': '' },
-          h('button', { 'data-pc-btn': '', onClick: save, disabled: busy }, busy ? '保存中…' : '保存'),
-          h('button', { 'data-pc-btn': 'ghost', onClick: load, disabled: busy }, '重新读取'),
-          error ? h('span', { 'data-pc-msg': 'fail' }, error) : null,
-          msg ? h('span', { 'data-pc-msg': 'ok' }, msg) : null),
-        h('div', { 'data-pc-note': '' }, data.note ?? ''))
+          status === 'saving' ? h('span', { 'data-pc-msg': 'ok' }, '保存中…') : null,
+          status === 'saved' ? h('span', { 'data-pc-msg': 'ok' }, '已保存') : null,
+          error ? h('span', { 'data-pc-msg': 'fail' }, error) : null))
     }
 
     return {

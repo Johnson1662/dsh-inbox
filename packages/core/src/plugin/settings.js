@@ -60,6 +60,7 @@ export function sourceFields(manifests = []) {
         ...(field.placeholder === undefined ? {} : { placeholder: field.placeholder }),
         ...(field.hint === undefined ? {} : { hint: field.hint }),
         ...(field.default === undefined ? {} : { default: field.default }),
+        ...(field.options ? { options: field.options } : {}),
       })
     }
   }

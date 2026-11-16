@@ -6,6 +6,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { configPath, loadConfig, persistConfig } from '../core/config.js'
+import { createChoiceLoader } from './choices.js'
 import { defaultsFor, fieldsFor, toLayered, toSettings, validate } from './settings.js'
 import { listBots, routesFromTargets, targetOfSource } from './targets.js'
 
@@ -16,6 +17,8 @@ export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}
   // 来源那一半的设置项从「装了什么来源」推导，不是写死的清单
   const fields = fieldsFor(manifests)
   const defaults = defaultsFor(fields)
+  // 字段的可选值（比如微信的群/联系人清单）由来源自己提供，这里只做缓存与转发
+  const choices = createChoiceLoader({ log })
 
   /** 保存设置：先校验，再落盘，最后热应用。落盘成功但热应用失败要如实报错。 */
   async function handlePost(req, res) {
@@ -39,14 +42,14 @@ export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}
     } catch (error) {
       return send(res, 500, { ok: false, error: `已保存但热应用失败：${error?.message ?? error}` })
     }
-    return send(res, 200, { ok: true, data: snapshot(settings) })
+    return send(res, 200, { ok: true, data: await snapshot(settings) })
   }
 
   return async function handle(req, res) {
     const blocked = guard(req)
     if (blocked) return send(res, 403, { ok: false, error: blocked })
     try {
-      if (req.method === 'GET') return send(res, 200, { ok: true, data: snapshot() })
+      if (req.method === 'GET') return send(res, 200, { ok: true, data: await snapshot() })
       if (req.method === 'POST') return await handlePost(req, res)
       return send(res, 405, { ok: false, error: '只支持 GET / POST' })
     } catch (error) {
@@ -65,7 +68,7 @@ export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}
     }
   }
 
-  function snapshot(settings) {
+  async function snapshot(settings) {
     const file = readFile()
     const bots = listBots(botStatePath)
     const routes = file.routes ?? []
@@ -74,10 +77,9 @@ export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}
     return {
       settings: settings ?? toSettings(loadConfig(file), fields),
       fields,
+      choices: await choices.load(fields),
       targets: { available: bots.map(bot => ({ id: bot.id, name: bot.name, role: bot.role })), current },
       groups: buildGroups(bots, current, settings ?? toSettings(loadConfig(file), fields), { fields, defaults }),
-      path,
-      note: '改完保存即可，守护进程一个轮询周期内生效；来源开关会重启对应来源进程，水位不丢。',
     }
   }
 }
@@ -96,13 +98,12 @@ export function buildGroups(bots, current, settings, options = {}) {
     kind: field.type,
     key: field.key,
     label: field.label,
-    hint: field.type === 'number' ? `${field.min} – ${field.max}` : '',
     min: field.min,
     max: field.max,
     step: field.step,
     default: defaults[field.key],
     ...(field.placeholder ? { placeholder: field.placeholder } : {}),
-    ...(field.hint ? { hint: field.hint } : {}),
+    ...(field.options ? { choicesKey: field.key } : {}),
   }))
 
   for (const field of fields) {
@@ -112,14 +113,12 @@ export function buildGroups(bots, current, settings, options = {}) {
     groups.push({
       id: `source:${source}`,
       title: field.group,
-      note: '关掉就停止采集；采到的消息投进下面选的会话。',
       items: [
         ...items(field.group),
         {
           kind: 'target',
           key: `target:${source}`,
           label: '投给哪个会话',
-          hint: '需要在 DSH 里打开过该会话',
           value: current[source] ?? '',
           options: bots.map(bot => ({ value: bot.id, label: bot.role ? `${bot.name} · ${bot.role}` : bot.name })),
         },
@@ -130,7 +129,6 @@ export function buildGroups(bots, current, settings, options = {}) {
   groups.push({
     id: 'delivery',
     title: '投递',
-    note: '只影响怎么打包投递，不影响采集。积压多时会自动放大上限，少唤醒几次。',
     items: items('投递'),
   })
 

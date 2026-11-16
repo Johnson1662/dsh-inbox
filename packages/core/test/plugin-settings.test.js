@@ -139,5 +139,6 @@ test('每个来源一张卡：开关、节奏、投给谁都在同一组，且 s
 
   const delivery = groups.find(group => group.title === '投递')
   assert.ok(delivery.items.every(item => item.kind === 'number'))
-  assert.ok(groups.every(group => group.note), '每张卡都有一句说明')
+  assert.ok(groups.every(group => !group.note), '卡片上不再放小字说明')
+  assert.ok(groups.every(group => group.items.every(item => !item.hint)), '每一项也不带小字')
 })

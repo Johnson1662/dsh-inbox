@@ -1,6 +1,6 @@
 {
   "name": "dsh-inbox-source-wx",
-  "version": "0.8.1",
+  "version": "0.9.3",
   "type": "module",
   "description": "微信来源：调 wx-cli 读本地聊天库，把新消息写成信封交给守护进程",
   "main": "./index.js",
@@ -33,10 +33,31 @@
         },
         {
           "key": "chats",
-          "label": "只采这些会话（username，逗号分隔；留空=一个都不采）",
+          "label": "采集哪些会话",
           "type": "list",
           "placeholder": "46345148370@chatroom, wxid_xxx",
-          "default": ""
+          "default": "",
+          "options": {
+            "command": "wx",
+            "args": [
+              "sessions",
+              "-n",
+              "500",
+              "--json"
+            ],
+            "path": "sessions",
+            "value": "username",
+            "label": "chat",
+            "group": {
+              "field": "is_group",
+              "true": "群聊",
+              "false": "联系人",
+              "order": [
+                "群聊",
+                "联系人"
+              ]
+            }
+          }
         }
       ]
     }
