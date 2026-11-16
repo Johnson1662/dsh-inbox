@@ -169,6 +169,7 @@ export function createPoller({
   const watermarkPath = join(stateDir, 'watermarks', 'wx.json')
   let watermarks = readWatermarks(watermarkPath)
   let stopped = false
+  const chatNames = new Map()
   let dirty = false
   let wake = null
 
@@ -191,7 +192,13 @@ export function createPoller({
   async function history(username) {
     const { stdout } = await exec('wx', ['history', username, '-n', String(page), '--json'])
     const parsed = JSON.parse(stdout)
+    chatNames.set(username, parsed?.chat ?? '')
     return Array.isArray(parsed?.messages) ? parsed.messages : []
+  }
+
+  /** username → 群/会话名，来自最近一次 history 响应；查不到时回退 username。 */
+  function chatName(username) {
+    return chatNames.get(username) || username
   }
 
   /** 一轮：逐个白名单会话取增量，交信封，推水位。返回这一轮发出去的条数。 */
@@ -230,7 +237,7 @@ export function createPoller({
       )
       for (const message of ordered) {
         if (!isNewer(message, watermarks[username])) continue
-        const envelope = toEnvelope(message, { username, name: username }, { offsetMinutes, selfId })
+        const envelope = toEnvelope(message, { username, name: chatName(username) }, { offsetMinutes, selfId })
         if (!envelope) continue
         const { timestamp, localId, ...rest } = envelope
         emit(rest)
