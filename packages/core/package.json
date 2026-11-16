@@ -1,6 +1,6 @@
 {
   "name": "dsh-inbox-core",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "type": "module",
   "description": "个人上下文核心：队列、投递适配器、设置面板、命令行",
   "main": "./src/plugin/index.js",

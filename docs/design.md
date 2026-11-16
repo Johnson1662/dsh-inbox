@@ -224,7 +224,14 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 
 面板的项目**不写在代码里**，从每个来源包 `package.json` 的 `dsh.source.fields` 生成：字段名首字母大写接在来源名后面，就是扁平键（`wx` + `chats` → `wxChats`）。加一路来源，面板自动多一张卡，不用改 `core`。
 
-两种控件需要来源自己声明：`type: "list"` 配 `options`（怎么问它要清单，如 `wx sessions -n 500 --json`），面板就画成「名字的选择器」——用户只看见群名，提交的仍是 username。取清单失败时退回上一次的好结果，绝不让用户手填 username。
+两种控件需要来源自己声明：`type: "list"` 配 `options`，面板就画成「名字的选择器」——用户只看见名字，提交的仍是 username。取清单失败时退回上一次的好结果，绝不让用户手填 username。
+
+`options` 有两种写法：
+
+- `command` + `args`：跑一条命令，从它吐的 JSON 里按 `path` 取数组、`value` 取提交值、`label` 取显示名、`group` 分组（`wx sessions -n 500 --json` 就是这样）。
+- `script`：只写脚本名，路径按来源包目录补全。取清单要拼几处数据时用它——微信的群名就在联系人缓存里，`wx sessions` 自己解不出来（见 `packages/sources/wx/choices.js`）。脚本 stdout 只放 JSON，取不到就退化成 `wx sessions` 的结果。
+
+来源的清单是缓存 60 秒的；保存设置会清掉缓存重取，改完立刻能看见新名字。
 
 改完即存（停顿 0.7 秒自动提交），后台每 15 秒自己取一次最新值；正在编辑时不刷新，免得把输入冲掉。写入 `config.json` 后：
 

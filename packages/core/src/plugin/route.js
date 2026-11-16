@@ -35,6 +35,8 @@ export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}
     if (targets.routes) patch.routes = targets.routes
 
     persistConfig(path, patch)
+    // 白名单本身变了也可能只是换了取值来源；清单一律重取，别让用户等缓存过期
+    choices.clear()
     log(`设置已更新：${JSON.stringify(settings)}`)
     try {
       await apply?.(settings)

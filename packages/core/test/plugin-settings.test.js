@@ -142,3 +142,30 @@ test('每个来源一张卡：开关、节奏、投给谁都在同一组，且 s
   assert.ok(groups.every(group => !group.note), '卡片上不再放小字说明')
   assert.ok(groups.every(group => group.items.every(item => !item.hint)), '每一项也不带小字')
 })
+
+test('来源可以只声明脚本名，路径由来源包目录补全', () => {
+  const manifests = [
+    {
+      name: 'wx',
+      label: '微信',
+      dir: '/opt/dsh-inbox/packages/sources/wx',
+      fields: [
+        {
+          key: 'chats',
+          label: '只采这些会话',
+          type: 'list',
+          options: { script: 'choices.js', path: 'sessions', value: 'username', label: 'chat' },
+        },
+      ],
+    },
+  ]
+  const [field] = sourceFields(manifests)
+  assert.equal(field.options.script, undefined, '脚本名不下发给面板')
+  assert.equal(field.options.command, process.execPath)
+  assert.deepEqual(field.options.args, ['/opt/dsh-inbox/packages/sources/wx/choices.js'])
+  assert.equal(field.options.path, 'sessions', '其余描述原样保留')
+
+  // 不知道包目录时宁可不给选项，也不要跑一个空命令
+  const [bare] = sourceFields([{ ...manifests[0], dir: undefined }])
+  assert.equal(bare.options, undefined)
+})

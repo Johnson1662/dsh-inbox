@@ -7,6 +7,7 @@
  * 来源那一半**不写死**：从已安装来源的 `dsh.source.fields` 声明里生成，所以新加
  * 一路来源，面板和配置自动就有它的开关与节奏，不用改这个文件。
  */
+import { join } from 'node:path'
 
 /** 投递侧的设置项：固定几项，与来源无关。 */
 export const DELIVERY_FIELDS = [
@@ -34,6 +35,17 @@ const FALLBACK_SOURCE_FIELDS = [
 const capitalize = value => `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`
 
 /**
+ * 来源可以只说「清单怎么算」——写个脚本名就行，路径按来源包目录补全。
+ * 这样可选值的取法可以有自己的逻辑（微信要合并联系人库），面板不用知道。
+ */
+function resolveOptions(options, dir) {
+  if (!options?.script) return options
+  if (!dir) return undefined
+  const { script, ...rest } = options
+  return { ...rest, command: process.execPath, args: [join(dir, script)] }
+}
+
+/**
  * 来源声明 → 设置项。
  *
  * 扁平键名 = 来源名 + 字段名首字母大写（`wx` + `chats` → `wxChats`）。
@@ -47,6 +59,7 @@ export function sourceFields(manifests = []) {
     const declared = Array.isArray(manifest.fields) && manifest.fields.length ? manifest.fields : FALLBACK_SOURCE_FIELDS
     for (const field of declared) {
       if (!field?.key) continue
+      const options = resolveOptions(field.options, manifest.dir)
       out.push({
         key: `${name}${capitalize(field.key)}`,
         source: name,
@@ -60,7 +73,7 @@ export function sourceFields(manifests = []) {
         ...(field.placeholder === undefined ? {} : { placeholder: field.placeholder }),
         ...(field.hint === undefined ? {} : { hint: field.hint }),
         ...(field.default === undefined ? {} : { default: field.default }),
-        ...(field.options ? { options: field.options } : {}),
+        ...(options ? { options } : {}),
       })
     }
   }
