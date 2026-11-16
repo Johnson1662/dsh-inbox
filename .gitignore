@@ -18,6 +18,7 @@ __pycache__/
 
 # 内部工作区与探针文件：不入库
 .scratch/
+omp-session-*.html
 .probe
 
 # 代码索引（本地生成，随时可重建）
