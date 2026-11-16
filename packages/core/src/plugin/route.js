@@ -6,26 +6,29 @@
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { configPath, loadConfig, persistConfig } from '../core/config.js'
-import { DEFAULTS as DEFAULT_SETTINGS, FIELDS, toLayered, toSettings, validate } from './settings.js'
+import { defaultsFor, fieldsFor, toLayered, toSettings, validate } from './settings.js'
 import { listBots, routesFromTargets, targetOfSource } from './targets.js'
 
 const MAX_BODY = 64 * 1024
 
-export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}, botStatePath }) {
+export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}, botStatePath, manifests = [] }) {
   const path = configPath(config)
+  // 来源那一半的设置项从「装了什么来源」推导，不是写死的清单
+  const fields = fieldsFor(manifests)
+  const defaults = defaultsFor(fields)
 
   /** 保存设置：先校验，再落盘，最后热应用。落盘成功但热应用失败要如实报错。 */
   async function handlePost(req, res) {
     const body = JSON.parse(await readBody(req))
     const file = readFile()
-    const { settings, errors } = validate(body?.settings ?? {}, toSettings(file))
+    const { settings, errors } = validate(body?.settings ?? {}, toSettings(file, fields), fields)
     if (errors.length) return send(res, 400, { ok: false, error: errors.join('；') })
 
     // 来源 → 目标会话：只收存在的 botId，写进 routes
     const targets = pickTargets(body?.targets, file, botStatePath)
     if (targets.error) return send(res, 400, { ok: false, error: targets.error })
 
-    const patch = toLayered(settings)
+    const patch = toLayered(settings, fields)
     if (targets.routes) patch.routes = targets.routes
 
     persistConfig(path, patch)
@@ -69,10 +72,10 @@ export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}
     const current = {}
     for (const source of Object.keys(config.sources ?? {})) current[source] = targetOfSource(routes, source)
     return {
-      settings: settings ?? toSettings(loadConfig(file)),
-      fields: FIELDS,
+      settings: settings ?? toSettings(loadConfig(file), fields),
+      fields,
       targets: { available: bots.map(bot => ({ id: bot.id, name: bot.name, role: bot.role })), current },
-      groups: buildGroups(bots, current, settings ?? toSettings(loadConfig(file))),
+      groups: buildGroups(bots, current, settings ?? toSettings(loadConfig(file), fields), { fields, defaults }),
       path,
       note: '改完保存即可，守护进程一个轮询周期内生效；来源开关会重启对应来源进程，水位不丢。',
     }
@@ -85,9 +88,11 @@ export function createSettingsRoute({ config, apply, applyRoutes, log = () => {}
  * 一个来源一张卡：开关、节奏、投给谁全在同一张卡里——
  * 之前开关在「飞书」、投给谁在底下「收件会话」，读的人得自己拼起来。
  */
-export function buildGroups(bots, current, settings) {
+export function buildGroups(bots, current, settings, options = {}) {
+  const fields = options.fields ?? fieldsFor([])
+  const defaults = options.defaults ?? defaultsFor(fields)
   const groups = []
-  const items = group => FIELDS.filter(field => field.group === group).map(field => ({
+  const items = group => fields.filter(field => field.group === group).map(field => ({
     kind: field.type,
     key: field.key,
     label: field.label,
@@ -95,10 +100,12 @@ export function buildGroups(bots, current, settings) {
     min: field.min,
     max: field.max,
     step: field.step,
-    default: DEFAULT_SETTINGS[field.key],
+    default: defaults[field.key],
+    ...(field.placeholder ? { placeholder: field.placeholder } : {}),
+    ...(field.hint ? { hint: field.hint } : {}),
   }))
 
-  for (const field of FIELDS) {
+  for (const field of fields) {
     if (!field.source) continue
     if (groups.some(group => group.id === `source:${field.source}`)) continue
     const source = field.source

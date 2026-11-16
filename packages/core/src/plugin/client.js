@@ -160,6 +160,22 @@ loader.load({
             onChange: event => onChange(item.key, Number(event.target.value)),
           }))
       }
+      if (item.kind === 'text' || item.kind === 'list') {
+        // list 就是一行逗号分隔；多行的话用 textarea，避免长白名单溢出
+        const long = item.kind === 'list' && String(settings[item.key] ?? '').length > 60
+        return h(Row, { label: item.label, hint: item.hint },
+          long
+            ? h('textarea', {
+                'data-pc-input': '', rows: 3, value: String(settings[item.key] ?? ''), disabled,
+                placeholder: item.placeholder ?? '',
+                onChange: event => onChange(item.key, event.target.value),
+              })
+            : h('input', {
+                'data-pc-input': '', type: 'text', value: String(settings[item.key] ?? ''), disabled,
+                placeholder: item.placeholder ?? '',
+                onChange: event => onChange(item.key, event.target.value),
+              }))
+      }
       if (item.kind === 'target') {
         const source = String(item.key).replace(/^target:/, '')
         return h(Row, { label: item.label, hint: item.hint },

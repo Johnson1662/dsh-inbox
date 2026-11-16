@@ -1,6 +1,6 @@
 {
   "name": "dsh-inbox-source-feishu",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "type": "module",
   "description": "飞书来源：用 lark-cli 以本人身份轮询会话，把新消息写成信封",
   "main": "./index.js",

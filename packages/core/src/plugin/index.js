@@ -4,7 +4,8 @@ import { configPath, expandHome, loadConfig, persistConfig } from '../core/confi
 import { createApiClient } from './api-client.js'
 import { createDeliveryLoop } from './loop.js'
 import { createSettingsRoute } from './route.js'
-import { toLayered, toSettings } from './settings.js'
+import { fieldsFor, toLayered, toSettings } from './settings.js'
+import { loadSourceManifests } from '../core/sources.js'
 
 export { Config } from './config-schema.js'
 export const name = 'dsh-inbox'
@@ -50,16 +51,24 @@ export function apply(ctx, pluginConfig = {}) {
   //  - 已有文件 → 投递参数以文件为准（面板改过就是改在这里）
   //  - 没有文件 → 用插件配置播一次种，之后不再覆盖
   const settingsPath = configPath(config)
-  let settings = toSettings(config)
+  // 面板里"每个来源一张卡"的字段来自实际装了的来源包，不是写死的
+  let manifests = []
+  try {
+    manifests = loadSourceManifests()
+  } catch (error) {
+    log(`来源清单读不出来，设置面板只显示投递项：${error?.message ?? error}`)
+  }
+  const fields = fieldsFor(manifests)
+  let settings = toSettings(config, fields)
   if (existsSync(settingsPath)) {
     try {
-      settings = toSettings(loadConfig(JSON.parse(readFileSync(settingsPath, 'utf8'))))
+      settings = toSettings(loadConfig(JSON.parse(readFileSync(settingsPath, 'utf8'))), fields)
     } catch (error) {
       log(`配置文件读不出来，退回插件配置: ${error.message}`)
     }
   } else {
     try {
-      persistConfig(settingsPath, toLayered(settings))
+      persistConfig(settingsPath, toLayered(settings, fields))
     } catch (error) {
       log(`回写配置文件失败: ${error.message}`)
     }
@@ -125,6 +134,7 @@ export function apply(ctx, pluginConfig = {}) {
   if (ctx.webServer?.register) {
     try {
       const route = createSettingsRoute({
+        manifests,
         config,
         log,
         apply(next) {
