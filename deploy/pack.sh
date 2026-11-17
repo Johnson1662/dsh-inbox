@@ -38,4 +38,4 @@ jq --arg pkgs "$pkgs" '
 tgz=$(ls -t "$tmp"/*.tgz | head -1)
 cp "$tgz" "$pkgs/$(basename "$tgz")"
 rm -rf "$tmp"
-echo "  dsh-inbox → $pkgs/$(basename "$tgz")"
+echo "  $(jq -r .name "$root/package.json") → $pkgs/$(basename "$tgz")"

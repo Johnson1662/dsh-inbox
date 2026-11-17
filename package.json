@@ -1,13 +1,12 @@
 {
-  "name": "dsh-inbox",
-  "version": "0.9.9",
+  "name": "@johnson1662/dsh-inbox",
+  "version": "0.9.10",
   "type": "module",
   "description": "个人上下文：各来源的消息收进来，投进指定的 agent 会话",
   "files": [
     "cordis.patch.yml",
     "LICENSE",
-    "README.md",
-    "packages"
+    "README.md"
   ],
   "dsh": {
     "bundle": {
@@ -15,11 +14,11 @@
     }
   },
   "dependencies": {
-    "dsh-inbox-core": "file:./packages/core",
-    "dsh-inbox-source-telegram": "file:./packages/sources/telegram",
-    "dsh-inbox-source-feishu": "file:./packages/sources/feishu",
-    "dsh-inbox-source-wx": "file:./packages/sources/wx",
-    "dsh-inbox-source-github": "file:./packages/sources/github"
+    "dsh-inbox-core": "^0.9.10",
+    "dsh-inbox-source-telegram": "^0.9.10",
+    "dsh-inbox-source-feishu": "^0.9.10",
+    "dsh-inbox-source-wx": "^0.9.10",
+    "dsh-inbox-source-github": "^0.9.10"
   },
   "scripts": {
     "test": "node --test 'packages/core/test/**/*.test.js' 'packages/sources/feishu/test/**/*.test.js' 'packages/sources/wx/test/**/*.test.js' 'packages/sources/github/test/**/*.test.js'",
@@ -35,5 +34,18 @@
   "homepage": "https://github.com/Johnson1662/dsh-inbox#readme",
   "bugs": {
     "url": "https://github.com/Johnson1662/dsh-inbox/issues"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "inbox",
+    "telegram",
+    "feishu",
+    "wechat",
+    "github"
+  ]
 }

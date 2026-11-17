@@ -22,7 +22,7 @@ personal-context status                            # 队列与来源状态
 
 GitHub 那一路不填凭据：命令行里 `gh auth login` 过一次，它就用那个登录态读未读通知。
 
-然后接上 agent。**目前的接收端实现是 [DSH](https://deepseek.com)**：插件 → 添加插件 → 本地目录 → 选本仓库，装完在它的**设置 → 个人上下文**里打开来源、选收件会话。
+然后接上 agent。**目前的接收端实现是 [DSH](https://deepseek.com)**：`dsh plugin --profile desktop add @johnson1662/dsh-inbox`（或插件页搜 `dsh-inbox`），装完在它的**设置 → 个人上下文**里打开来源、选收件会话。
 
 换别的 agent 只需实现[下面那个契约](#二接一个-agent)，中枢与所有来源都不用动。凭据怎么拿、环境变量、排错见 [docs/operations.md](docs/operations.md)。
 

@@ -1,6 +1,6 @@
 {
   "name": "dsh-inbox-source-telegram",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "type": "module",
   "description": "Telegram 来源：轮询会话，把新消息写成信封交给守护进程",
   "main": "./index.js",
