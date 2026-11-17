@@ -159,6 +159,16 @@ function readContactsFrom(path) {
   return contacts
 }
 
+/** username → 名字，只取有名字的那些；投递时用它把 xxx@chatroom 换成群名。 */
+export function contactNames(dir) {
+  const out = new Map()
+  for (const [username, entry] of readContacts(findContactCache(dir))) {
+    const name = String(entry?.name ?? '').trim()
+    if (name && name !== username) out.set(username, name)
+  }
+  return out
+}
+
 /**
  * 合并：会话在前（保持 wx 的最近顺序），缺名字的补上真名，
  * 联系人里有但一条消息都没有的群追加在后（人不追加，几千个没法选）。

@@ -1,6 +1,6 @@
 {
   "name": "dsh-inbox",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "type": "module",
   "description": "个人上下文：各来源的消息收进来，投进指定的 agent 会话",
   "files": [

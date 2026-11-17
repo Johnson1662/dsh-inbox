@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { test } from 'node:test'
 
-import { findContactCache, mergeChoices, readContacts, readSessions } from '../choices.js'
+import { contactNames, findContactCache, mergeChoices, readContacts, readSessions } from '../choices.js'
 
 /** 假联系人库：形状和 wx 解出来的明文缓存一致，只留用得上的列。 */
 function cacheWith(rows) {
@@ -37,6 +37,22 @@ test('联系人缓存读名字：群用群名，人优先备注；跳过已删�
     assert.deepEqual(contacts.get('48422226990@chatroom'), { name: '262701-自然语言处理课', group: true, inRoom: true })
     assert.deepEqual(contacts.get('59048799667@chatroom'), { name: '已退出的群', group: true, inRoom: false })
     assert.deepEqual(contacts.get('wxid_friend'), { name: '张三（同学）', group: false, inRoom: true }, '备注优先于昵称')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('投递用名字：username → 名字，没名字的不放进映射', () => {
+  const { dir } = cacheWith([
+    { username: '48422226990@chatroom', nick_name: '262701-自然语言处理课' },
+    { username: '53137664982@chatroom', nick_name: '   ' },
+    { username: 'wxid_friend', nick_name: '张三', remark: '张三（同学）' },
+  ])
+  try {
+    assert.deepEqual([...contactNames(dir)], [
+      ['48422226990@chatroom', '262701-自然语言处理课'],
+      ['wxid_friend', '张三（同学）'],
+    ])
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

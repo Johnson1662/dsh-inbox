@@ -19,6 +19,8 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 
+import { contactNames } from './choices.js'
+
 const run = promisify(execFile)
 
 const SOURCE = 'wx'
@@ -163,6 +165,7 @@ export function createPoller({
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
   emit = envelope => process.stdout.write(`${JSON.stringify(envelope)}\n`),
   log: logLine = log,
+  lookupName = () => '',
 } = {}) {
   if (typeof exec !== 'function') throw new TypeError('createPoller 需要注入 exec(file, args) -> Promise<{stdout}>')
 
@@ -196,9 +199,11 @@ export function createPoller({
     return Array.isArray(parsed?.messages) ? parsed.messages : []
   }
 
-  /** username → 群/会话名，来自最近一次 history 响应；查不到时回退 username。 */
+  /** username → 群名：history 解出来的优先，其次是联系人缓存，都没有才退回 username。 */
   function chatName(username) {
-    return chatNames.get(username) || username
+    const fromHistory = chatNames.get(username) ?? ''
+    if (fromHistory && fromHistory !== username) return fromHistory
+    return lookupName(username) || username
   }
 
   /** 一轮：逐个白名单会话取增量，交信封，推水位。返回这一轮发出去的条数。 */
@@ -288,6 +293,25 @@ export function createPoller({
   }
 }
 
+/** 联系人缓存 → 名字查询，按 TTL 刷新；缓存坏页或正在重写时当没有，不影响投递。 */
+export function createNameSource({ ttlMs = 5 * 60_000, now = Date.now, load = () => contactNames() } = {}) {
+  let names = new Map()
+  // -Infinity 保证第一次查询就加载，不吃 now() 的起点
+  let loadedAt = Number.NEGATIVE_INFINITY
+  return function lookupName(username) {
+    if (now() - loadedAt >= ttlMs) {
+      loadedAt = now()
+      try {
+        names = load()
+      } catch (error) {
+        log(`联系人缓存读不出来：${shortReason(error)}`)
+        names = new Map()
+      }
+    }
+    return names.get(username) ?? ''
+  }
+}
+
 function typeOf(error) {
   return error?.name ?? 'Error'
 }
@@ -316,6 +340,7 @@ async function main() {
     selfId,
     backfill,
     intervalMs,
+    lookupName: createNameSource(),
   })
 
   for (const signal of ['SIGTERM', 'SIGINT']) {

@@ -230,6 +230,7 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 
 - `command` + `args`：跑一条命令，从它吐的 JSON 里按 `path` 取数组、`value` 取提交值、`label` 取显示名、`group` 分组（`wx sessions -n 500 --json` 就是这样）。
 - `script`：只写脚本名，路径按来源包目录补全。取清单要拼几处数据时用它——微信的群名就在联系人缓存里，`wx sessions` 自己解不出来（见 `packages/sources/wx/choices.js`）。脚本 stdout 只放 JSON，取不到就退化成 `wx sessions` 的结果。
+- 同一份缓存投递时也用一次：信封的 `meta.chat` 写群名或备注名，`meta.chat_username` 留原始 username。`wx history` 自己解出名字时以它为准，解不出才查缓存，都查不到才退回 username（`createNameSource`，5 分钟 TTL，读不到不影响投递）。
 
 来源的清单是缓存 60 秒的；保存设置会清掉缓存重取，改完立刻能看见新名字。
 

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { createPoller, isNewer, parseChats, toEnvelope, toZonedIso } from '../worker.js'
+import { createNameSource, createPoller, isNewer, parseChats, toEnvelope, toZonedIso } from '../worker.js'
 
 // 全程用假 exec，不碰真实微信库；时区钉死 +08:00，不依赖跑测试那台机器的 TZ。
 const OFFSET = 480
@@ -23,7 +23,7 @@ function message(localId, timestamp, { sender = '张三', content = '正文', ty
 }
 
 /** 假 wx：按 username 返回预先排好的消息（故意倒序，考验排序）。 */
-function fakeWx(byChat, { fail = [] } = {}) {
+function fakeWx(byChat, { fail = [], names = {} } = {}) {
   const calls = []
   return {
     calls,
@@ -32,12 +32,12 @@ function fakeWx(byChat, { fail = [] } = {}) {
       const username = args[1]
       if (fail.includes(username)) throw new Error(`读 ${username} 炸了`)
       const messages = byChat[username] ?? []
-      return { stdout: JSON.stringify({ chat: username, messages: [...messages].reverse() }) }
+      return { stdout: JSON.stringify({ chat: names[username] ?? username, messages: [...messages].reverse() }) }
     },
   }
 }
 
-function createTestPoller(t, { fake, chats, prepare, backfill } = {}) {
+function createTestPoller(t, { fake, chats, prepare, backfill, lookupName } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'pc-wx-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   if (prepare) prepare(dir)
@@ -53,6 +53,7 @@ function createTestPoller(t, { fake, chats, prepare, backfill } = {}) {
     offsetMinutes: OFFSET,
     emit: envelope => emitted.push(envelope),
     log: line => logs.push(line),
+    ...(lookupName ? { lookupName } : {}),
   })
   return { poller, dir, emitted, logs, watermarkFile: join(dir, 'watermarks', 'wx.json') }
 }
@@ -110,6 +111,56 @@ test('水位比较：同一条不算新，更新时间或更大 local_id 才算'
   assert.equal(isNewer(message(6, 100), { ts: 100, localId: 5 }), true)
   assert.equal(isNewer(message(1, 101), { ts: 100, localId: 5 }), true)
   assert.equal(isNewer(message(9, 99), { ts: 100, localId: 5 }), false)
+})
+
+test('投递用群名：history 解出来的优先，其次是联系人缓存，都没有才退回 username', async t => {
+  const fake = fakeWx(
+    { '1@chatroom': [message(1, 100)], '2@chatroom': [message(2, 100)], '3@chatroom': [message(3, 100)] },
+    { names: { '2@chatroom': 'history 里的群名' } },
+  )
+  const ctx = createTestPoller(t, {
+    fake,
+    chats: ['1@chatroom', '2@chatroom', '3@chatroom'],
+    backfill: 1,
+    lookupName: username => (username === '1@chatroom' ? '缓存里的群名' : ''),
+  })
+
+  await ctx.poller.pollOnce()
+
+  const names = Object.fromEntries(ctx.emitted.map(e => [e.meta.chat_username, e.meta.chat]))
+  assert.deepEqual(names, {
+    '1@chatroom': '缓存里的群名',
+    '2@chatroom': 'history 里的群名',
+    '3@chatroom': '3@chatroom',
+  })
+})
+
+test('名字来源按 TTL 刷新，读失败当没有', () => {
+  let reads = 0
+  let clock = 0
+  const lookup = createNameSource({
+    ttlMs: 1000,
+    now: () => clock,
+    load: () => {
+      reads += 1
+      return new Map([['a@chatroom', '群 A']])
+    },
+  })
+
+  assert.equal(lookup('a@chatroom'), '群 A')
+  assert.equal(lookup('a@chatroom'), '群 A')
+  assert.equal(reads, 1, 'TTL 内只读一次缓存')
+
+  clock = 1500
+  lookup('a@chatroom')
+  assert.equal(reads, 2)
+
+  const broken = createNameSource({
+    load: () => {
+      throw new Error('database disk image is malformed')
+    },
+  })
+  assert.equal(broken('a@chatroom'), '', '读不出来就退回空，不抛错')
 })
 
 // ---------------------------------------------------------------------------
