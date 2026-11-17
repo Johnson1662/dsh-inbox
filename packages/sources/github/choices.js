@@ -45,22 +45,31 @@ async function token(env = process.env, exec = run, bin = 'gh') {
   return String(stdout ?? '').trim()
 }
 
-async function fetchRepos(env = process.env, exec = run, bin = 'gh') {
+/** 同一个 token 顺带问一次登录账号，用来把"我的仓库"分到第一组。 */
+async function github(path, token, doFetch) {
+  const response = await doFetch(`https://api.github.com${path}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  })
+  if (!response.ok) throw new Error(`GitHub 返回 ${response.status}`)
+  return response.json()
+}
+
+export async function fetchRepos(env = process.env, exec = run, bin = 'gh', doFetch = fetch) {
   const value = await token(env, exec, bin)
   if (!value) return { repos: [] }
-  const response = await fetch(
-    `https://api.github.com/user/repos?per_page=${PER_PAGE}&sort=pushed&affiliation=owner,collaborator,organization_member`,
-    {
-      headers: {
-        Authorization: `Bearer ${value}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-    },
-  )
-  if (!response.ok) throw new Error(`GitHub 返回 ${response.status}`)
-  const rows = await response.json()
-  return { repos: toChoices(Array.isArray(rows) ? rows : []) }
+  const [me, rows] = await Promise.all([
+    github('/user', value, doFetch),
+    github(
+      `/user/repos?per_page=${PER_PAGE}&sort=pushed&affiliation=owner,collaborator,organization_member`,
+      value,
+      doFetch,
+    ),
+  ])
+  return { repos: toChoices(Array.isArray(rows) ? rows : [], String(me?.login ?? '')) }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

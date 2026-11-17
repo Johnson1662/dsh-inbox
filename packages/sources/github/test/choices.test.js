@@ -27,3 +27,25 @@ test('仓库清单：空的和重复的丢掉', () => {
   const repos = [{ full_name: '' }, { full_name: 'a/b' }, { full_name: 'a/b' }, null]
   assert.deepEqual(toChoices(repos).map(item => item.full_name), ['a/b'])
 })
+
+test('仓库清单：拿登录账号把自己的仓库排在第一组', async () => {
+  const { fetchRepos } = await import('../choices.js')
+  const calls = []
+  const doFetch = async (url) => {
+    calls.push(url)
+    const body = url.endsWith('/user')
+      ? { login: 'Johnson1662' }
+      : [
+          { full_name: 'acme/tools', owner: { login: 'acme', type: 'Organization' } },
+          { full_name: 'Johnson1662/dsh-inbox', owner: { login: 'Johnson1662', type: 'User' } },
+        ]
+    return { ok: true, json: async () => body }
+  }
+  const exec = async () => ({ stdout: 'gho_test\n' })
+  const { repos } = await fetchRepos({}, exec, 'gh', doFetch)
+  assert.deepEqual(repos.map(item => [item.full_name, item.group]), [
+    ['Johnson1662/dsh-inbox', '我的仓库'],
+    ['acme/tools', '组织'],
+  ])
+  assert.equal(calls.length, 2)
+})
