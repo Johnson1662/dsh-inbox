@@ -490,6 +490,7 @@ async def run(cfg):
     from telethon import TelegramClient
 
     try:
+        Path(cfg['session']).parent.mkdir(parents=True, exist_ok=True)
         client = TelegramClient(cfg['session'], cfg['api_id'], cfg['api_hash'], proxy=cfg['proxy'])
     except ImportError as error:
         # 指定了代理但没装 python-socks 之类

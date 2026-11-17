@@ -15,7 +15,7 @@
 
 ## 凭据怎么拿
 
-**Telegram**：到 [my.telegram.org](https://my.telegram.org) 创建应用，拿 `api_id` 与 `api_hash`；`session` 是 [Telethon](https://docs.telethon.dev) 的用户会话文件，首次需交互登录（`python3 -m pip install telethon` 后按提示输入手机号与验证码）。
+**Telegram**：到 [my.telegram.org](https://my.telegram.org) 创建应用，拿 `api_id` 与 `api_hash`；`session` 是 [Telethon](https://docs.telethon.dev) 的用户会话文件，首次需交互登录（`python3 -m pip install telethon` 后按提示输入手机号与验证码）。默认放在 `~/.dsh/state/personal-context/telegram/session.session`：登录态跟着状态目录走，不借别的项目的文件。
 
 **飞书**：安装 [lark-cli](https://www.npmjs.com/package/@larksuite/cli)（`npm i -g @larksuite/cli`），再执行 `lark-cli config init --as user` 完成一次登录。全程以你本人身份读消息，不依赖机器人事件订阅。
 
@@ -27,7 +27,6 @@
 node packages/core/bin/personal-context.mjs init --yes \
   --telegram-api-id 123456 \
   --telegram-api-hash abcdef0123456789 \
-  --telegram-session ~/.config/telegram/session
 ```
 
 ---

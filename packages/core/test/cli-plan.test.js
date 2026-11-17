@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildConfig, buildEnvFile, buildLaunchdPlist, buildSystemdUnit, cleanValue, servicePlan } from '../src/cli/plan.js'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+
+import { buildConfig, buildEnvFile, buildLaunchdPlist, buildSystemdUnit, cleanValue, defaultSession, servicePlan } from '../src/cli/plan.js'
 
 test('env 文件只写有值的项，凭据不落进 config.json', () => {
   const env = buildEnvFile({ telegram: { apiId: '123', apiHash: 'abc', session: '/tmp/x.session', proxy: 'socks5://127.0.0.1:7897' } })
@@ -40,4 +43,12 @@ test('平台映射', () => {
   assert.equal(servicePlan('linux', '/h').kind, 'systemd')
   assert.equal(servicePlan('darwin', '/h').kind, 'launchd')
   assert.equal(servicePlan('win32', '/h').kind, 'none')
+})
+
+test('Telegram 会话文件默认落在自己的状态目录，不借别的项目', () => {
+  assert.equal(
+    defaultSession('/home/me/.dsh/state/personal-context'),
+    '/home/me/.dsh/state/personal-context/telegram/session',
+  )
+  assert.equal(defaultSession('~/.dsh/state/personal-context'), join(homedir(), '.dsh/state/personal-context/telegram/session'))
 })

@@ -3,6 +3,14 @@
  *
  * 这里不碰文件系统、不跑命令，所以能直接测；真正写盘和启动在 bin/pc.mjs。
  */
+import { join } from 'node:path'
+
+import { expandHome } from '../core/config.js'
+
+/** 会话文件默认落在自己的状态目录里：换仓库、清目录都不该把登录态带走。 */
+export function defaultSession(stateDir) {
+  return join(expandHome(stateDir || '~/.dsh/state/personal-context'), 'telegram', 'session')
+}
 
 /** 只允许简单的键值，防止有人从参数里注入换行写坏 env 文件。 */
 export function cleanValue(value, name) {

@@ -15,7 +15,7 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
-import { buildConfig, buildEnvFile, buildLaunchdPlist, buildSystemdUnit, servicePlan } from '../src/cli/plan.js'
+import { buildConfig, buildEnvFile, buildLaunchdPlist, buildSystemdUnit, defaultSession, servicePlan } from '../src/cli/plan.js'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const args = parseArgs(process.argv.slice(2))
@@ -85,7 +85,7 @@ async function collect(existing) {
   const telegram = {
     apiId: args['telegram-api-id'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_API_ID ?? '',
     apiHash: args['telegram-api-hash'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_API_HASH ?? '',
-    session: args['telegram-session'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_SESSION ?? '',
+    session: args['telegram-session'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_SESSION ?? defaultSession(stateDir),
     proxy: args['telegram-proxy'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_PROXY ?? '',
     chats: args['telegram-chats'] ?? existing.PERSONAL_CONTEXT_TELEGRAM_CHATS ?? '',
   }
@@ -93,7 +93,7 @@ async function collect(existing) {
   if (wantTelegram) {
     telegram.apiId = telegram.apiId || await question('Telegram api_id（my.telegram.org 拿，回车跳过）')
     telegram.apiHash = telegram.apiHash || await question('Telegram api_hash')
-    telegram.session = telegram.session || await question('Telethon 会话文件路径（回车跳过 → 首次运行时生成）')
+    telegram.session = telegram.session || await question('Telethon 会话文件（回车用默认位置，首次运行时要登录一次）')
     telegram.proxy = telegram.proxy || await question('代理（可选，形如 socks5://127.0.0.1:7897）')
   }
   ask?.close()

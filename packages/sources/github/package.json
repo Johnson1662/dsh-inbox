@@ -1,6 +1,6 @@
 {
   "name": "dsh-inbox-source-github",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "type": "module",
   "description": "GitHub 来源：轮询未读通知，把 issue / PR / review / CI 写成信封交给守护进程",
   "main": "./index.js",
