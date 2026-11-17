@@ -2,29 +2,38 @@
   "name": "@johnson1662/dsh-inbox",
   "version": "0.9.10",
   "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./packages/core/src/plugin/client.js",
+    "./package.json": "./package.json"
+  },
   "description": "个人上下文：各来源的消息收进来，投进指定的 agent 会话",
   "files": [
+    "index.js",
     "cordis.patch.yml",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "packages"
   ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
     }
-  },
-  "dependencies": {
-    "dsh-inbox-core": "^0.9.10",
-    "dsh-inbox-source-telegram": "^0.9.10",
-    "dsh-inbox-source-feishu": "^0.9.10",
-    "dsh-inbox-source-wx": "^0.9.10",
-    "dsh-inbox-source-github": "^0.9.10"
   },
   "scripts": {
     "test": "node --test 'packages/core/test/**/*.test.js' 'packages/sources/feishu/test/**/*.test.js' 'packages/sources/wx/test/**/*.test.js' 'packages/sources/github/test/**/*.test.js'",
     "daemon": "node packages/core/src/daemon/index.js",
     "check": "node scripts/check.mjs",
-    "rot": "npx -y -p github:Johnson1662/fuck-u-code#v2.2.2-fork.1 fuck-u-code analyze ."
+    "rot": "npx -y -p github:Johnson1662/fuck-u-code#v2.2.2-fork.1 fuck-u-code analyze .",
+    "pack": "node scripts/pack-release.mjs"
   },
   "license": "MIT",
   "repository": {
@@ -47,5 +56,17 @@
     "feishu",
     "wechat",
     "github"
-  ]
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": ">=3",
+    "@deepseek-ai/dsh-llm": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    }
+  }
 }

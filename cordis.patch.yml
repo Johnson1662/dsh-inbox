@@ -1,8 +1,7 @@
-# dsh-inbox —— 壳包：只负责把各个组件插进组合。
-# 装这一个包，pnpm 会把 core 与几路来源一起装下来。
+# dsh-inbox —— 装这一个包就够：包内带 core 与四路来源，这里只把它插进组合。
 - insert:
-    - id: dsh-inbox-core
-      name: dsh-inbox-core
+    - id: dsh-inbox
+      name: '@johnson1662/dsh-inbox'
       config:
         enabled: true
         stateDir: ~/.dsh/state/personal-context
@@ -25,11 +24,3 @@
           - sources: ["*"]
             sink: chief
         sinks: {}
-    - id: dsh-inbox-source-telegram
-      name: dsh-inbox-source-telegram
-    - id: dsh-inbox-source-feishu
-      name: dsh-inbox-source-feishu
-    - id: dsh-inbox-source-wx
-      name: dsh-inbox-source-wx
-    - id: dsh-inbox-source-github
-      name: dsh-inbox-source-github

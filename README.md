@@ -24,6 +24,8 @@ GitHub 那一路不填凭据：命令行里 `gh auth login` 过一次，它就�
 
 然后接上 agent。**目前的接收端实现是 [DSH](https://deepseek.com)**：`dsh plugin --profile desktop add @johnson1662/dsh-inbox`（或插件页搜 `dsh-inbox`），装完在它的**设置 → 个人上下文**里打开来源、选收件会话。
 
+装 tgz 也一样：`dsh plugin --profile desktop add ./dsh-inbox-<版本>.tgz`。发布包自包含，core 与四路来源都在包里，不需要另外装子包；打这个包用 `npm run pack`。
+
 换别的 agent 只需实现[下面那个契约](#二接一个-agent)，中枢与所有来源都不用动。凭据怎么拿、环境变量、排错见 [docs/operations.md](docs/operations.md)。
 
 ---
