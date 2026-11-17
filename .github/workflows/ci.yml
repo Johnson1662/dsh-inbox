@@ -14,8 +14,8 @@ jobs:
       matrix:
         node: [22, 24]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
       # 零运行时依赖：不需要 npm install
@@ -25,10 +25,13 @@ jobs:
       - name: Pack
         run: |
           bash deploy/pack.sh
+          # npm pack 把 scoped 包的 @ 和 / 都换成 -（@scope/name → scope-name），
+          # 校验前先按同一规则把 name 拍平，否则拼出的路径必然不存在。
+          flat_name() { printf '%s\n' "${1#@}" | tr '/' '-'; }
           # 按 packages 目录遍历，新增来源自动纳入校验
           for dir in packages/core packages/sources/*; do
-            name=$(jq -r .name "$dir/package.json")
+            name=$(flat_name "$(jq -r .name "$dir/package.json")")
             ls "$HOME/.dsh/local-pkgs/$name-"*.tgz
           done
-          name=$(jq -r .name package.json)
+          name=$(flat_name "$(jq -r .name package.json)")
           ls "$HOME/.dsh/local-pkgs/$name-"[0-9]*.tgz
