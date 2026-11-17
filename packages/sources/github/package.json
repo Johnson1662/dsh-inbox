@@ -1,0 +1,61 @@
+{
+  "name": "dsh-inbox-source-github",
+  "version": "0.9.7",
+  "type": "module",
+  "description": "GitHub 来源：轮询未读通知，把 issue / PR / review / CI 写成信封交给守护进程",
+  "main": "./index.js",
+  "files": [
+    "worker.js",
+    "index.js",
+    "choices.js",
+    "package.json"
+  ],
+  "dsh": {
+    "source": {
+      "name": "github",
+      "label": "GitHub",
+      "runtime": "node",
+      "entry": "worker.js",
+      "fields": [
+        {
+          "key": "enabled",
+          "label": "采集 GitHub",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "intervalMs",
+          "label": "轮询间隔（毫秒）",
+          "type": "number",
+          "min": 10000,
+          "max": 600000,
+          "step": 1000,
+          "default": 60000
+        },
+        {
+          "key": "repos",
+          "label": "只看哪些仓库",
+          "type": "list",
+          "placeholder": "留空 = 全部仓库",
+          "default": "",
+          "hint": "token 取 gh 的登录态，不用另存",
+          "options": {
+            "script": "choices.js",
+            "path": "repos",
+            "value": "full_name",
+            "label": "full_name",
+            "group": {
+              "field": "group",
+              "order": [
+                "我的仓库",
+                "组织",
+                "协作"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "license": "MIT"
+}

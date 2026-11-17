@@ -1,6 +1,6 @@
 {
   "name": "dsh-inbox-source-wx",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "type": "module",
   "description": "微信来源：调 wx-cli 读本地聊天库，把新消息写成信封交给守护进程",
   "main": "./index.js",

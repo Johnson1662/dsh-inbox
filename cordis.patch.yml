@@ -19,6 +19,8 @@
         sources:
           wx:
             enabled: false          # 白名单（chats）是个人数据，不进仓库；在本地 config.json 里开
+          github:
+            enabled: false          # token 走 gh 登录态，不进配置；仓库白名单也在本地 config.json 里选
         routes:
           - sources: ["*"]
             sink: chief
@@ -29,3 +31,5 @@
       name: dsh-inbox-source-feishu
     - id: dsh-inbox-source-wx
       name: dsh-inbox-source-wx
+    - id: dsh-inbox-source-github
+      name: dsh-inbox-source-github

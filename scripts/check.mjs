@@ -52,7 +52,7 @@ console.log(`语法检查：${pyFiles.length} 个 Python 文件，${pyBad} 个�
 if (bad || pyBad) process.exit(1)
 
 try {
-  execFileSync('node', ['--test', 'packages/core/test/**/*.test.js', 'packages/sources/feishu/test/**/*.test.js', 'packages/sources/wx/test/**/*.test.js'], {
+  execFileSync('node', ['--test', 'packages/core/test/**/*.test.js', 'packages/sources/feishu/test/**/*.test.js', 'packages/sources/wx/test/**/*.test.js', 'packages/sources/github/test/**/*.test.js'], {
     cwd: root, stdio: 'inherit',
   })
 } catch {

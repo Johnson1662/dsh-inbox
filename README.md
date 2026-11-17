@@ -4,7 +4,7 @@
 
 **核心定位**：这是一条**管道**，不是一个插件。任意来源 → 统一信封 → 常驻队列 → 任意 agent 的任意会话。来源可以随便加，接收端可以随便换，两端各有一个几十行就能实现的契约。
 
-今天接的是 Telegram 和飞书——那是**最早的两个实现**，不是这个项目的边界。
+今天接的是 Telegram、飞书、微信和 GitHub 通知——那是**前四个实现**，不是这个项目的边界。
 
 [Node.js](https://nodejs.org) · [MIT](LICENSE)
 
@@ -19,6 +19,8 @@ git clone <本仓库地址> && cd <仓库目录>
 node packages/core/bin/personal-context.mjs init   # 问凭据 → 装开机自启 → 起服务
 personal-context status                            # 队列与来源状态
 ```
+
+GitHub 那一路不填凭据：命令行里 `gh auth login` 过一次，它就用那个登录态读未读通知。
 
 然后接上 agent。**目前的接收端实现是 [DSH](https://deepseek.com)**：插件 → 添加插件 → 本地目录 → 选本仓库，装完在它的**设置 → 个人上下文**里打开来源、选收件会话。
 
@@ -47,7 +49,7 @@ personal-context status                            # 队列与来源状态
 **每一层都能单独替换，这是整个设计的目的。**
 
 ```
-来源          telegram   feishu   imap   screen   curl 一条   …随便加
+来源          telegram   feishu   wx   github   imap   screen   …随便加
               ↓ 只输出统一信封，不认识收件人
 中枢          去重入库 → 按路由排队 → 发小票（唯一写者，不认识任何 agent）
               ↓ HTTP：take / done / retry
@@ -162,7 +164,8 @@ if (events.length) {
 ├── packages/sources/             来源，一路一个包
 │   ├── telegram/                 Telegram（Python + Telethon）
 │   ├── feishu/                   飞书（lark-cli，以你本人身份读）
-│   └── wx/                       微信（调 wx-cli 读本地聊天库，白名单）
+│   ├── wx/                       微信（调 wx-cli 读本地聊天库，白名单）
+│   └── github/                   GitHub 通知（轮询未读，token 走 gh 登录态）
 ├── cordis.patch.yml              接收端：DSH 的组合补丁（装三个组件）
 ├── deploy/                       打包、systemd 单元、重启脚本
 └── docs/                         设计说明、ADR、运维手册

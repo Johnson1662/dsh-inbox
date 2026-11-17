@@ -77,3 +77,23 @@ test('组按声明顺序排：群聊在联系人前面', () => {
   const groups = pickChoices(PAYLOAD, withOrder).map(choice => choice.group)
   assert.deepEqual(groups, ['群聊', '群聊', '联系人'])
 })
+
+test('分组没给映射时，那一列的值就是组名', () => {
+  const payload = {
+    repos: [
+      { full_name: 'a/b', group: '协作' },
+      { full_name: 'c/d', group: '我的仓库' },
+      { full_name: 'e/f', group: '组织' },
+    ],
+  }
+  const descriptor = {
+    path: 'repos',
+    value: 'full_name',
+    label: 'full_name',
+    group: { field: 'group', order: ['我的仓库', '组织', '协作'] },
+  }
+  assert.deepEqual(
+    pickChoices(payload, descriptor).map(choice => [choice.value, choice.group]),
+    [['c/d', '我的仓库'], ['e/f', '组织'], ['a/b', '协作']],
+  )
+})

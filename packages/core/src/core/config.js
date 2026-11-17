@@ -22,6 +22,7 @@ export const DEFAULTS = Object.freeze({
   sources: {
     telegram: { enabled: false, intervalMs: 8000 },
     feishu: { enabled: false, intervalMs: 5000 },
+    github: { enabled: false, intervalMs: 60000, repos: [] },
   },
 })
 
@@ -29,6 +30,7 @@ export const DEFAULTS = Object.freeze({
 const REQUIRED = {
   telegram: ['apiId', 'apiHash', 'session'],
   feishu: [],
+  github: [],
 }
 
 const BOOL = { '1': true, 'true': true, yes: true, on: true, '0': false, 'false': false, no: false, off: false }

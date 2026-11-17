@@ -41,8 +41,10 @@ export function pickChoices(payload, descriptor = {}) {
     seen.add(value)
     const rawLabel = String(row[descriptor.label ?? 'label'] ?? '').trim()
     const label = rawLabel && rawLabel !== value ? rawLabel : value
+    // 分组二选一：声明里给了映射就查表（is_group 1/0 → 群聊/联系人），
+    // 没给映射就把那一列的值直接当组名（GitHub 的仓库清单自己带「组织」「协作」）。
     const group = descriptor.group
-      ? String(descriptor.group[String(row[descriptor.group.field])] ?? '') || undefined
+      ? String(descriptor.group[String(row[descriptor.group.field])] ?? row[descriptor.group.field] ?? '') || undefined
       : undefined
     out.push(group ? { value, label, group } : { value, label })
   }

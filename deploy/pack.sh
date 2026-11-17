@@ -19,7 +19,7 @@ pack_one() {
 }
 
 echo "打包组件："
-for dir in packages/core packages/sources/telegram packages/sources/feishu packages/sources/wx; do
+for dir in packages/core packages/sources/telegram packages/sources/feishu packages/sources/wx packages/sources/github; do
   pack_one "$root/$dir"
 done
 
@@ -31,7 +31,8 @@ jq --arg pkgs "$pkgs" '
     "dsh-inbox-core": ("file:" + $pkgs + "/dsh-inbox-core-" + .version + ".tgz"),
     "dsh-inbox-source-telegram": ("file:" + $pkgs + "/dsh-inbox-source-telegram-" + .version + ".tgz"),
     "dsh-inbox-source-feishu": ("file:" + $pkgs + "/dsh-inbox-source-feishu-" + .version + ".tgz"),
-    "dsh-inbox-source-wx": ("file:" + $pkgs + "/dsh-inbox-source-wx-" + .version + ".tgz")
+    "dsh-inbox-source-wx": ("file:" + $pkgs + "/dsh-inbox-source-wx-" + .version + ".tgz"),
+    "dsh-inbox-source-github": ("file:" + $pkgs + "/dsh-inbox-source-github-" + .version + ".tgz")
   }' "$root/package.json" > "$tmp/package.json"
 ( cd "$tmp" && npm pack --silent >/dev/null )
 tgz=$(ls -t "$tmp"/*.tgz | head -1)

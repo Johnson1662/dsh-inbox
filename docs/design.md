@@ -2,7 +2,7 @@
 
 个人 agent 的**上下文基础设施**：把各来源的信息收进来，中转一下，投进某个 agent 的某个会话。
 
-**状态：已跑起来。** 采集常驻（systemd 用户服务，开机自启），两路来源在跑（Telegram 8 秒、飞书 5 秒），设置界面在 DSH 的「设置 → 个人上下文」里，队列条数守恒。
+**状态：已跑起来。** 采集常驻（systemd 用户服务，开机自启），三路来源在跑（Telegram 8 秒、飞书 5 秒、微信 30 秒），GitHub 一路已装、默认关，设置界面在 DSH 的「设置 → 个人上下文」里，队列条数守恒。
 
 ---
 
@@ -150,7 +150,7 @@ DSH 插件就是按这个写法实现的（`src/plugin/api-client.js`），它�
 
 投递循环每 500ms 取一次待投事件。**如果这 500ms 里攒了多条，它们被打包成一条消息**投进会话——但**批内每条事件都完整保留**，一行一条，不做摘要、不改写、不合并内容。
 
-**延迟预算**：来源轮询间隔 + 投递间隔。Telegram 默认 8 秒、飞书 5 秒，投递 ≤0.5 秒，所以「发出去到出现在会话里」最坏是一个轮询周期。实测入库→投递 138ms。要更快就调 `PERSONAL_CONTEXT_TELEGRAM_INTERVAL_MS` / `PERSONAL_CONTEXT_FEISHU_INTERVAL_MS`，不用改代码。
+**延迟预算**：来源轮询间隔 + 投递间隔。Telegram 默认 8 秒、飞书 5 秒、微信 30 秒、GitHub 60 秒，投递 ≤0.5 秒，所以「发出去到出现在会话里」最坏是一个轮询周期。实测入库→投递 138ms。要更快就在设置面板改各来源的轮询间隔，不用改代码。
 
 **上限与溢出**：单批 50 条 / 4000 字。装不下就顺延到下一批；积压超过 200 条时上限放大到 200 条 / 20000 字——放大是为了少唤醒几次，**不是为了少投几条**。
 
@@ -254,6 +254,7 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 | `PERSONAL_CONTEXT_TELEGRAM_INTERVAL_MS` | TG 轮询间隔（默认值，设置界面可改） | `8000` |
 | `PERSONAL_CONTEXT_TELEGRAM_API_ID` / `PERSONAL_CONTEXT_TELEGRAM_API_HASH` / `PERSONAL_CONTEXT_TELEGRAM_SESSION` | TG 凭据与会话文件 | 无（启用即必填） |
 | `PERSONAL_CONTEXT_FEISHU_INTERVAL_MS` | 飞书轮询间隔（默认值，设置界面可改） | `5000` |
+| `PERSONAL_CONTEXT_SOURCE_TOKEN` | GitHub token；留空就用 `gh auth token` | 空 |
 | `PERSONAL_CONTEXT_TELEGRAM_PROXY` | TG 走的代理（`socks5://host:port`） | 无 |
 | `PERSONAL_CONTEXT_TELEGRAM_CHATS` | 只采这些会话，逗号分隔；空=全部 | 空 |
 | `PERSONAL_CONTEXT_TELEGRAM_BACKFILL` | 首次见到一个会话时回填最近几条；`0` = 只从当前最新开始，不回溯历史 | `0` |
@@ -285,7 +286,7 @@ DSH 没有「按 schema 自动生成表单」这回事（那是 Koishi 的行为
 
 ## 现在做 / 现在不做
 
-**第一批来源（已定）**：Telegram、飞书。屏幕、麦克风、邮件都推后。
+**已实现**：Telegram、飞书、微信、GitHub 通知。屏幕、麦克风、邮件都推后。
 
 **做**：来源进程 → 统一信封 → 队列 → 500ms 一批投进一个会话。采集常驻（不依赖 DSH 开着），零丢失。
 

@@ -46,6 +46,7 @@ export function buildConfig({ stateDir, telegramEnabled = false, feishuEnabled =
     sources: {
       telegram: { enabled: telegramEnabled, intervalMs: telegramIntervalMs },
       feishu: { enabled: feishuEnabled, intervalMs: feishuIntervalMs },
+      github: { enabled: false, intervalMs: 60000, repos: [] },
     },
   }
 }
