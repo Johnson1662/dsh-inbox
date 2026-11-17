@@ -25,7 +25,10 @@ jobs:
       - name: Pack
         run: |
           bash deploy/pack.sh
-          for pkg in core source-telegram source-feishu; do
-            ls "$HOME/.dsh/local-pkgs/dsh-personal-context-${pkg}-"*.tgz
+          # 按 packages 目录遍历，新增来源自动纳入校验
+          for dir in packages/core packages/sources/*; do
+            name=$(jq -r .name "$dir/package.json")
+            ls "$HOME/.dsh/local-pkgs/$name-"*.tgz
           done
-          ls "$HOME/.dsh/local-pkgs/dsh-personal-context-"[0-9]*.tgz
+          name=$(jq -r .name package.json)
+          ls "$HOME/.dsh/local-pkgs/$name-"[0-9]*.tgz
