@@ -1,6 +1,6 @@
 {
   "name": "dsh-inbox",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "type": "module",
   "description": "个人上下文：各来源的消息收进来，投进指定的 agent 会话",
   "files": [
@@ -26,5 +26,13 @@
     "check": "node scripts/check.mjs",
     "rot": "npx -y -p github:Johnson1662/fuck-u-code#v2.2.2-fork.1 fuck-u-code analyze ."
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Johnson1662/dsh-inbox.git"
+  },
+  "homepage": "https://github.com/Johnson1662/dsh-inbox#readme",
+  "bugs": {
+    "url": "https://github.com/Johnson1662/dsh-inbox/issues"
+  }
 }
